@@ -44,7 +44,6 @@ export default async function TicketDetailPage({
     { data: requesterAssets },
     { data: comments },
     { data: analysts },
-    { data: allAssets },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -58,7 +57,6 @@ export default async function TicketDetailPage({
       .eq('ticket_id', id)
       .order('created_at', { ascending: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
-    supabase.from('assets').select('id, asset_tag, name').order('name'),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -234,10 +232,16 @@ export default async function TicketDetailPage({
               const asset = ta.asset as unknown as Asset
               return { id: asset.id, asset_tag: asset.asset_tag, name: asset.name }
             })}
-            allAssets={allAssets ?? []}
-            requesterAssetIds={(requesterAssets ?? []).map(
-              (ra) => (ra.asset as unknown as Asset).id
-            )}
+            requesterAssets={(requesterAssets ?? []).map((ra) => {
+              const asset = ra.asset as unknown as Asset
+              return {
+                id: asset.id,
+                asset_tag: asset.asset_tag,
+                name: asset.name,
+                type: asset.type,
+                phone_line: asset.phone_line ?? null,
+              }
+            })}
           />
         </div>
       </div>

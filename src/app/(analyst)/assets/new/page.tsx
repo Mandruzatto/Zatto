@@ -33,7 +33,10 @@ export default function NewAssetPage() {
   })
 
   const typeOptions = Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => ({ value, label }))
-  const statusOptions = Object.entries(ASSET_STATUS_LABELS).map(([value, label]) => ({ value, label }))
+  // 'Em Uso' exige um responsável — atribuição é feita na página do ativo após o cadastro
+  const statusOptions = Object.entries(ASSET_STATUS_LABELS)
+    .filter(([value]) => value !== 'in_use')
+    .map(([value, label]) => ({ value, label }))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

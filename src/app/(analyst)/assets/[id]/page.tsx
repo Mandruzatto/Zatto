@@ -95,7 +95,7 @@ export default async function AssetDetailPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 space-y-5">
-          <AssetEdit asset={asset as unknown as Asset} />
+          <AssetEdit asset={asset as unknown as Asset} hasHolder={!!currentAssignment} />
 
           <Card>
             <CardHeader><CardTitle>Histórico de atribuições</CardTitle></CardHeader>

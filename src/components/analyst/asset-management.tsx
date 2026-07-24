@@ -15,9 +15,10 @@ import { User, UserMinus } from 'lucide-react'
 
 interface AssetEditProps {
   asset: Asset
+  hasHolder: boolean
 }
 
-export function AssetEdit({ asset }: AssetEditProps) {
+export function AssetEdit({ asset, hasHolder }: AssetEditProps) {
   const router = useRouter()
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
@@ -48,6 +49,7 @@ export function AssetEdit({ asset }: AssetEditProps) {
   }
 
   const dirty = JSON.stringify(form) !== JSON.stringify(original)
+  const inUseWithoutHolder = form.status === 'in_use' && !hasHolder
 
   async function handleSave() {
     setSaving(true)
@@ -97,12 +99,19 @@ export function AssetEdit({ asset }: AssetEditProps) {
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value as AssetType })}
           />
-          <Select
-            label="Status"
-            options={statusOptions}
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as AssetStatus })}
-          />
+          <div>
+            <Select
+              label="Status"
+              options={statusOptions}
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as AssetStatus })}
+            />
+            {inUseWithoutHolder && (
+              <p className="text-xs text-amber-400 mt-1.5">
+                Defina um responsável no painel ao lado para salvar como &ldquo;Em Uso&rdquo;.
+              </p>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Input
@@ -152,7 +161,7 @@ export function AssetEdit({ asset }: AssetEditProps) {
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty || !form.name.trim()}
+          disabled={!dirty || !form.name.trim() || inUseWithoutHolder}
           className="w-full"
           size="sm"
         >

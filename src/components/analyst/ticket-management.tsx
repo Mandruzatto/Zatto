@@ -16,7 +16,7 @@ import {
   cn,
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, TicketPriority, TicketType, TicketArea } from '@/lib/types'
-import { Lock, MessageSquare } from 'lucide-react'
+import { Lock, MessageSquare, Trash2 } from 'lucide-react'
 
 interface TicketManagementProps {
   ticket: Ticket
@@ -28,6 +28,8 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
   const router = useRouter()
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [form, setForm] = useState({
     status: ticket.status,
     priority: ticket.priority,
@@ -76,6 +78,26 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
       return
     }
     toast('Alterações salvas')
+    router.refresh()
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setDeleting(true)
+
+    const { error } = await supabase.from('tickets').delete().eq('id', ticket.id)
+
+    if (error) {
+      setDeleting(false)
+      setConfirmDelete(false)
+      toast('Erro ao excluir chamado', 'error')
+      return
+    }
+    toast(`Chamado ${ticket.ticket_number} excluído`)
+    router.push('/tickets')
     router.refresh()
   }
 
@@ -147,6 +169,25 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
         >
           Salvar alterações
         </Button>
+
+        <div className="border-t border-zinc-800/70 pt-3.5">
+          <Button
+            onClick={handleDelete}
+            loading={deleting}
+            onBlur={() => setConfirmDelete(false)}
+            variant={confirmDelete ? 'danger' : 'ghost'}
+            size="sm"
+            className={cn('w-full', !confirmDelete && 'text-red-400/70 hover:text-red-400 hover:bg-red-500/10')}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            {confirmDelete ? 'Clique para confirmar a exclusão' : 'Excluir chamado'}
+          </Button>
+          {confirmDelete && (
+            <p className="text-xs text-zinc-600 mt-1.5 text-center">
+              Comentários e vínculos serão removidos permanentemente.
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
