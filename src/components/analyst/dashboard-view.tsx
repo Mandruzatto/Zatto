@@ -1,0 +1,347 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import {
+  Ticket as TicketIcon,
+  Monitor,
+  Users,
+  AlertCircle,
+  ShieldAlert,
+  Settings2,
+  Package,
+  X,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  cn,
+  formatDate,
+  formatDateShort,
+  daysUntil,
+  getWarrantyStatus,
+  TICKET_STATUS_LABELS,
+  TICKET_STATUS_COLORS,
+  TICKET_STATUS_BAR_COLORS,
+  TICKET_PRIORITY_LABELS,
+  TICKET_PRIORITY_COLORS,
+} from '@/lib/utils'
+import type { Ticket, TicketStatus, Asset } from '@/lib/types'
+
+export interface DashboardData {
+  statusCounts: Record<TicketStatus, number>
+  assetsInUse: number
+  assetsStock: number
+  totalUsers: number
+  recentTickets: (Ticket & { requester: { full_name: string; department?: string } | null })[]
+  criticalTickets: (Ticket & { requester: { full_name: string } | null })[]
+  warrantyAssets: Asset[]
+}
+
+type WidgetId = 'stats' | 'progress' | 'warranty' | 'recent' | 'critical'
+
+const WIDGETS: { id: WidgetId; label: string }[] = [
+  { id: 'stats', label: 'Indicadores' },
+  { id: 'progress', label: 'Andamento dos chamados' },
+  { id: 'warranty', label: 'Alertas de garantia' },
+  { id: 'recent', label: 'Chamados recentes' },
+  { id: 'critical', label: 'Chamados críticos' },
+]
+
+const STORAGE_KEY = 'zatto:dashboard-widgets'
+
+const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
+  stats: true,
+  progress: true,
+  warranty: true,
+  recent: true,
+  critical: true,
+}
+
+export function DashboardView({ data }: { data: DashboardData }) {
+  const [visibility, setVisibility] = useState<Record<WidgetId, boolean>>(DEFAULT_VISIBILITY)
+  const [customizing, setCustomizing] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) setVisibility({ ...DEFAULT_VISIBILITY, ...JSON.parse(stored) })
+    } catch {}
+    setHydrated(true)
+  }, [])
+
+  function toggle(id: WidgetId) {
+    setVisibility((prev) => {
+      const next = { ...prev, [id]: !prev[id] }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  const activeTickets =
+    data.statusCounts.open + data.statusCounts.in_progress + data.statusCounts.waiting
+  const totalTickets = Object.values(data.statusCounts).reduce((a, b) => a + b, 0)
+
+  const expiringAssets = data.warrantyAssets.filter((a) => {
+    const s = getWarrantyStatus(a.warranty_end_date)
+    return s === 'expiring' || s === 'expired'
+  })
+
+  const stats = [
+    { label: 'Chamados ativos', value: activeTickets, icon: TicketIcon, href: '/tickets' },
+    { label: 'Ativos em uso', value: data.assetsInUse, icon: Monitor, href: '/assets' },
+    { label: 'Em estoque', value: data.assetsStock, icon: Package, href: '/assets' },
+    { label: 'Colaboradores', value: data.totalUsers, icon: Users, href: '/users' },
+  ]
+
+  if (!hydrated) return <div className="p-6" />
+
+  return (
+    <div className="p-6 space-y-5 max-w-6xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Dashboard</h1>
+          <p className="text-[13px] text-zinc-500 mt-0.5">Visão geral do suporte</p>
+        </div>
+        <button
+          onClick={() => setCustomizing(!customizing)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors',
+            customizing
+              ? 'border-zinc-600 bg-zinc-900 text-zinc-100'
+              : 'border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+          )}
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          Personalizar
+        </button>
+      </div>
+
+      {customizing && (
+        <Card>
+          <CardContent className="py-3.5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[13px] font-medium text-zinc-300">Widgets visíveis</p>
+              <button onClick={() => setCustomizing(false)} className="text-zinc-600 hover:text-zinc-300">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {WIDGETS.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => toggle(w.id)}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-medium border transition-colors',
+                    visibility[w.id]
+                      ? 'bg-zinc-100 text-zinc-950 border-zinc-100'
+                      : 'bg-transparent text-zinc-500 border-zinc-800 hover:border-zinc-600'
+                  )}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.stats && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          {stats.map((stat) => {
+            const Icon = stat.icon
+            return (
+              <Link key={stat.label} href={stat.href}>
+                <Card className="hover:border-zinc-700 transition-colors">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-zinc-500">{stat.label}</p>
+                      <Icon className="h-4 w-4 text-zinc-700" />
+                    </div>
+                    <p className="text-2xl font-semibold text-zinc-100 mt-1.5 tabular-nums">{stat.value}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {visibility.progress && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Andamento dos chamados</CardTitle>
+            <span className="text-xs text-zinc-600 tabular-nums">{totalTickets} no total</span>
+          </CardHeader>
+          <CardContent>
+            {totalTickets > 0 ? (
+              <>
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800/60">
+                  {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) =>
+                    data.statusCounts[status] > 0 ? (
+                      <div
+                        key={status}
+                        className={TICKET_STATUS_BAR_COLORS[status]}
+                        style={{ width: `${(data.statusCounts[status] / totalTickets) * 100}%` }}
+                      />
+                    ) : null
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+                  {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) => (
+                    <div key={status} className="flex items-center gap-1.5">
+                      <span className={cn('h-2 w-2 rounded-full', TICKET_STATUS_BAR_COLORS[status])} />
+                      <span className="text-xs text-zinc-400">{TICKET_STATUS_LABELS[status]}</span>
+                      <span className="text-xs font-medium text-zinc-200 tabular-nums">
+                        {data.statusCounts[status]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.warranty && expiringAssets.length > 0 && (
+        <Card className="border-amber-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-400" />
+              Garantias exigindo atenção
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-zinc-800/70">
+              {expiringAssets.map((asset) => {
+                const status = getWarrantyStatus(asset.warranty_end_date)
+                const days = asset.warranty_end_date ? daysUntil(asset.warranty_end_date) : 0
+                return (
+                  <Link
+                    key={asset.id}
+                    href={`/assets/${asset.id}`}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                  >
+                    <Monitor className="h-4 w-4 text-zinc-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-zinc-200 truncate">{asset.name}</p>
+                      <p className="text-xs text-zinc-600 font-mono">{asset.asset_tag}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge
+                        className={
+                          status === 'expired'
+                            ? 'bg-red-500/10 text-red-400'
+                            : 'bg-amber-500/10 text-amber-400'
+                        }
+                      >
+                        {status === 'expired'
+                          ? 'Expirada'
+                          : `${days} dia${days === 1 ? '' : 's'} restante${days === 1 ? '' : 's'}`}
+                      </Badge>
+                      <p className="text-[11px] text-zinc-600 mt-1">
+                        {asset.warranty_end_date && formatDateShort(asset.warranty_end_date)}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        {visibility.recent && (
+          <div className={visibility.critical ? 'xl:col-span-2' : 'xl:col-span-3'}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Chamados recentes</CardTitle>
+                <Link href="/tickets" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
+                  Ver todos
+                </Link>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.recentTickets.length > 0 ? (
+                  <div className="divide-y divide-zinc-800/70">
+                    {data.recentTickets.map((ticket) => (
+                      <Link
+                        key={ticket.id}
+                        href={`/tickets/${ticket.id}`}
+                        className="flex items-start gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-zinc-200 truncate">{ticket.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-zinc-600 font-mono">{ticket.ticket_number}</span>
+                            <span className="text-zinc-800">·</span>
+                            <span className="text-xs text-zinc-500">{ticket.requester?.full_name}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge className={TICKET_PRIORITY_COLORS[ticket.priority]}>
+                            {TICKET_PRIORITY_LABELS[ticket.priority]}
+                          </Badge>
+                          <Badge className={TICKET_STATUS_COLORS[ticket.status]}>
+                            {TICKET_STATUS_LABELS[ticket.status]}
+                          </Badge>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-5 py-8 text-center text-[13px] text-zinc-600">
+                    Nenhum chamado registrado.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {visibility.critical && (
+          <div className={visibility.recent ? '' : 'xl:col-span-3'}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-400" />
+                  Críticos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.criticalTickets.length > 0 ? (
+                  <div className="divide-y divide-zinc-800/70">
+                    {data.criticalTickets.map((ticket) => (
+                      <Link
+                        key={ticket.id}
+                        href={`/tickets/${ticket.id}`}
+                        className="block px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                      >
+                        <p className="text-[13px] font-medium text-zinc-200 truncate">{ticket.title}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-zinc-500">{ticket.requester?.full_name}</span>
+                          <Badge className={TICKET_STATUS_COLORS[ticket.status]}>
+                            {TICKET_STATUS_LABELS[ticket.status]}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-zinc-600 mt-1">{formatDate(ticket.created_at)}</p>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-5 py-8 text-center text-[13px] text-zinc-600">
+                    Nenhum chamado crítico.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

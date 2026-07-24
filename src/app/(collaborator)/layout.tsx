@@ -13,7 +13,7 @@ export default async function CollaboratorLayout({
   if (!user) redirect('/login')
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-zinc-950">
       <CollaboratorSidebar />
       <main className="flex-1 overflow-y-auto">
         {children}

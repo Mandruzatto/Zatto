@@ -8,7 +8,6 @@ import {
   TICKET_CATEGORY_LABELS, formatDate
 } from '@/lib/utils'
 import type { Ticket } from '@/lib/types'
-import { PlusCircle } from 'lucide-react'
 
 export default async function TicketsPage({
   searchParams,
@@ -29,48 +28,48 @@ export default async function TicketsPage({
 
   const { data: tickets } = await query
 
+  type TicketRow = Ticket & {
+    requester: { id: string; full_name: string; department?: string } | null
+    assignee: { id: string; full_name: string } | null
+  }
+
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Chamados</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{tickets?.length ?? 0} chamados encontrados</p>
-        </div>
+    <div className="p-6 space-y-5 max-w-6xl">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Chamados</h1>
+        <p className="text-[13px] text-zinc-500 mt-0.5">{tickets?.length ?? 0} chamados encontrados</p>
       </div>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Chamado</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Solicitante</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Categoria</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Prioridade</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Atribuído a</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Criado em</th>
+              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Chamado</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Solicitante</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Categoria</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Prioridade</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Atribuído a</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Criado em</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {(tickets as unknown as (Ticket & {
-                requester: { id: string; full_name: string; department?: string }
-                assignee: { id: string; full_name: string } | null
-              })[])?.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
+            <tbody className="divide-y divide-zinc-800/60">
+              {(tickets as unknown as TicketRow[])?.map((ticket) => (
+                <tr key={ticket.id} className="hover:bg-zinc-900/60 transition-colors">
                   <td className="px-4 py-3">
-                    <Link href={`/tickets/${ticket.id}`} className="hover:text-indigo-600">
-                      <p className="font-medium text-gray-900">{ticket.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{ticket.ticket_number}</p>
+                    <Link href={`/tickets/${ticket.id}`} className="group">
+                      <p className="font-medium text-zinc-200 group-hover:text-white">{ticket.title}</p>
+                      <p className="text-xs text-zinc-600 mt-0.5 font-mono">{ticket.ticket_number}</p>
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-gray-700">{ticket.requester?.full_name}</p>
+                    <p className="text-zinc-300">{ticket.requester?.full_name}</p>
                     {ticket.requester?.department && (
-                      <p className="text-xs text-gray-400">{ticket.requester.department}</p>
+                      <p className="text-xs text-zinc-600">{ticket.requester.department}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-zinc-400">
                     {TICKET_CATEGORY_LABELS[ticket.category]}
                   </td>
                   <td className="px-4 py-3">
@@ -83,17 +82,17 @@ export default async function TicketsPage({
                       {TICKET_STATUS_LABELS[ticket.status]}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {ticket.assignee?.full_name ?? <span className="text-gray-400 italic">Não atribuído</span>}
+                  <td className="px-4 py-3 text-zinc-400">
+                    {ticket.assignee?.full_name ?? <span className="text-zinc-600 text-xs">Não atribuído</span>}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
+                  <td className="px-4 py-3 text-zinc-500 text-xs">
                     {formatDate(ticket.created_at)}
                   </td>
                 </tr>
               ))}
               {(!tickets || tickets.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-600">
                     Nenhum chamado encontrado.
                   </td>
                 </tr>

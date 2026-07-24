@@ -7,7 +7,7 @@ import {
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
   formatDate
 } from '@/lib/utils'
-import { PlusCircle } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 export default async function MyTicketsPage() {
   const supabase = await createClient()
@@ -23,42 +23,42 @@ export default async function MyTicketsPage() {
   const resolved = tickets?.filter((t) => ['resolved', 'closed'].includes(t.status)).length ?? 0
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Meus Chamados</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Meus Chamados</h1>
+          <p className="text-[13px] text-zinc-500 mt-0.5">
             {open} abertos · {resolved} resolvidos
           </p>
         </div>
         <Link
           href="/new-ticket"
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-zinc-950 hover:bg-zinc-300 transition-colors"
         >
-          <PlusCircle className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           Abrir Chamado
         </Link>
       </div>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Chamado</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Prioridade</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Atendente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Criado em</th>
+              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Chamado</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Prioridade</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Atendente</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Criado em</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-zinc-800/60">
               {tickets?.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={ticket.id} className="hover:bg-zinc-900/60 transition-colors">
                   <td className="px-4 py-3">
-                    <Link href={`/my-tickets/${ticket.id}`} className="hover:text-emerald-600">
-                      <p className="font-medium text-gray-900">{ticket.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{ticket.ticket_number}</p>
+                    <Link href={`/my-tickets/${ticket.id}`} className="group">
+                      <p className="font-medium text-zinc-200 group-hover:text-white">{ticket.title}</p>
+                      <p className="text-xs text-zinc-600 mt-0.5 font-mono">{ticket.ticket_number}</p>
                     </Link>
                   </td>
                   <td className="px-4 py-3">
@@ -71,19 +71,21 @@ export default async function MyTicketsPage() {
                       {TICKET_STATUS_LABELS[ticket.status as keyof typeof TICKET_STATUS_LABELS]}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {(ticket.assignee as any)?.full_name ?? <span className="text-gray-400 italic">Aguardando</span>}
+                  <td className="px-4 py-3 text-zinc-400">
+                    {(ticket.assignee as unknown as { full_name: string } | null)?.full_name ?? (
+                      <span className="text-zinc-600 text-xs">Aguardando</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
+                  <td className="px-4 py-3 text-zinc-500 text-xs">
                     {formatDate(ticket.created_at)}
                   </td>
                 </tr>
               ))}
               {(!tickets || tickets.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-600">
                     Você ainda não abriu nenhum chamado.{' '}
-                    <Link href="/new-ticket" className="text-emerald-600 hover:underline">
+                    <Link href="/new-ticket" className="text-zinc-300 hover:text-white underline underline-offset-2">
                       Abrir chamado
                     </Link>
                   </td>

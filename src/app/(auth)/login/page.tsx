@@ -39,53 +39,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 mb-4">
-            <Zap className="h-6 w-6 text-white" />
+        <div className="flex flex-col items-center mb-10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 mb-4">
+            <Zap className="h-5 w-5 text-zinc-950" />
           </div>
-          <h1 className="text-2xl font-bold text-white">zaTTo</h1>
-          <p className="text-slate-400 text-sm mt-1">Plataforma de Suporte & Inventário</p>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">zaTTo</h1>
+          <p className="text-zinc-500 text-[13px] mt-1">Suporte & Inventário</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Entrar na conta</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="E-mail"
+            type="email"
+            placeholder="seu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+          <Input
+            label="Senha"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="E-mail"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-            <Input
-              label="Senha"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+          {error && (
+            <p className="text-[13px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          )}
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-            )}
-
-            <Button
-              type="submit"
-              loading={loading}
-              className="w-full mt-2"
-              size="lg"
-            >
-              Entrar
-            </Button>
-          </form>
-        </div>
+          <Button type="submit" loading={loading} className="w-full mt-2">
+            Entrar
+          </Button>
+        </form>
       </div>
     </div>
   )

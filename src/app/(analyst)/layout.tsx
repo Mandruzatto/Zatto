@@ -21,7 +21,7 @@ export default async function AnalystLayout({
   if (profile?.role !== 'analyst') redirect('/my-tickets')
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-zinc-950">
       <AnalystSidebar />
       <main className="flex-1 overflow-y-auto">
         {children}

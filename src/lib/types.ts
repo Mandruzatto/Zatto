@@ -4,8 +4,10 @@ export type TicketStatus = 'open' | 'in_progress' | 'waiting' | 'resolved' | 'cl
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
 export type TicketCategory = 'hardware' | 'software' | 'network' | 'access' | 'other'
 
-export type AssetStatus = 'active' | 'inactive' | 'maintenance' | 'retired'
+export type AssetStatus = 'in_use' | 'stock' | 'returned' | 'maintenance' | 'disposed'
 export type AssetType = 'laptop' | 'desktop' | 'monitor' | 'phone' | 'printer' | 'tablet' | 'other'
+
+export type WarrantyStatus = 'none' | 'active' | 'expiring' | 'expired'
 
 export interface Profile {
   id: string
@@ -46,6 +48,7 @@ export interface Asset {
   serial_number?: string
   status: AssetStatus
   purchase_date?: string
+  warranty_end_date?: string
   notes?: string
   created_at: string
   updated_at: string

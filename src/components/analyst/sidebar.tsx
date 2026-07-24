@@ -1,19 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Ticket,
   Monitor,
   Users,
   LogOut,
-  ChevronRight,
   Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,18 +31,18 @@ export function AnalystSidebar() {
   }
 
   return (
-    <aside className="flex h-screen w-60 flex-col border-r border-gray-200 bg-white">
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-100">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-          <Zap className="h-4 w-4 text-white" />
+    <aside className="flex h-screen w-56 flex-col border-r border-zinc-800/80 bg-zinc-950">
+      <div className="flex items-center gap-2.5 px-4 py-5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-100">
+          <Zap className="h-3.5 w-3.5 text-zinc-950" />
         </div>
-        <div>
-          <p className="text-sm font-bold text-gray-900">zaTTo</p>
-          <p className="text-xs text-gray-500">Analista</p>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm font-semibold tracking-tight text-zinc-100">zaTTo</span>
+          <span className="text-[11px] text-zinc-600 font-medium">analista</span>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-2.5 pt-2 space-y-0.5">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -53,26 +51,25 @@ export function AnalystSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium transition-colors',
                 active
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-zinc-900 text-zinc-50'
+                  : 'text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200'
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-zinc-300' : 'text-zinc-600')} />
               {item.label}
-              {active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-indigo-400" />}
             </Link>
           )
         })}
       </nav>
 
-      <div className="border-t border-gray-100 p-3">
+      <div className="border-t border-zinc-800/80 p-2.5">
         <button
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200 transition-colors"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 text-zinc-600" />
           Sair
         </button>
       </div>

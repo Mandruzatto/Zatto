@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { TICKET_PRIORITY_LABELS, TICKET_CATEGORY_LABELS } from '@/lib/utils'
 import type { TicketPriority, TicketCategory } from '@/lib/types'
 import { CheckCircle } from 'lucide-react'
@@ -60,10 +60,10 @@ export default function NewTicketPage() {
       <div className="p-6 max-w-lg">
         <Card>
           <CardContent className="py-12 text-center space-y-3">
-            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-gray-900">Chamado aberto!</h2>
-            <p className="text-gray-500 text-sm">
-              Seu chamado <span className="font-mono font-semibold text-gray-700">{ticketNumber}</span> foi registrado.
+            <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto" />
+            <h2 className="text-base font-semibold text-zinc-100">Chamado aberto!</h2>
+            <p className="text-zinc-500 text-[13px]">
+              Seu chamado <span className="font-mono font-semibold text-zinc-300">{ticketNumber}</span> foi registrado.
               Nossa equipe entrará em contato em breve.
             </p>
             <div className="flex gap-3 justify-center pt-2">
@@ -86,13 +86,13 @@ export default function NewTicketPage() {
   return (
     <div className="p-6 space-y-5 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Abrir Chamado</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Descreva o problema e nossa equipe irá atendê-lo.</p>
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Abrir Chamado</h1>
+        <p className="text-[13px] text-zinc-500 mt-0.5">Descreva o problema e nossa equipe irá atendê-lo.</p>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <CardContent className="pt-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Assunto"
               placeholder="Ex: Notebook não liga"
@@ -126,7 +126,7 @@ export default function NewTicketPage() {
               hint="Inclua quando o problema começou e o que você já tentou fazer."
             />
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-1">
               <Button type="submit" loading={loading}>
                 Abrir Chamado
               </Button>

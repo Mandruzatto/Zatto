@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { ASSET_TYPE_LABELS, ASSET_STATUS_LABELS } from '@/lib/utils'
 import type { AssetType, AssetStatus } from '@/lib/types'
 import { ArrowLeft } from 'lucide-react'
@@ -22,11 +22,12 @@ export default function NewAssetPage() {
     asset_tag: '',
     name: '',
     type: 'laptop' as AssetType,
-    status: 'active' as AssetStatus,
+    status: 'stock' as AssetStatus,
     brand: '',
     model: '',
     serial_number: '',
     purchase_date: '',
+    warranty_end_date: '',
     notes: '',
   })
 
@@ -47,6 +48,7 @@ export default function NewAssetPage() {
       model: form.model || null,
       serial_number: form.serial_number || null,
       purchase_date: form.purchase_date || null,
+      warranty_end_date: form.warranty_end_date || null,
       notes: form.notes || null,
     })
 
@@ -61,19 +63,19 @@ export default function NewAssetPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-2xl">
-      <Link href="/assets" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
-        <ArrowLeft className="h-4 w-4" />
-        Voltar ao Inventário
+      <Link href="/assets" className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-200 transition-colors">
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Inventário
       </Link>
 
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Novo Ativo</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Cadastre um novo equipamento no inventário.</p>
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Novo Ativo</h1>
+        <p className="text-[13px] text-zinc-500 mt-0.5">Cadastre um novo equipamento no inventário.</p>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <CardContent className="pt-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Tag de Patrimônio"
@@ -128,12 +130,21 @@ export default function NewAssetPage() {
               />
             </div>
 
-            <Input
-              label="Data de Aquisição"
-              type="date"
-              value={form.purchase_date}
-              onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Data de Aquisição"
+                type="date"
+                value={form.purchase_date}
+                onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
+              />
+              <Input
+                label="Fim da Garantia"
+                type="date"
+                value={form.warranty_end_date}
+                onChange={(e) => setForm({ ...form, warranty_end_date: e.target.value })}
+                hint="Deixe vazio se não houver garantia"
+              />
+            </div>
 
             <Textarea
               label="Observações"
@@ -144,10 +155,10 @@ export default function NewAssetPage() {
             />
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              <p className="text-[13px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
             )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-1">
               <Button type="submit" loading={loading}>
                 Cadastrar Ativo
               </Button>

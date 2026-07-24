@@ -4,8 +4,10 @@ import { Card } from '@/components/ui/card'
 import Link from 'next/link'
 import {
   ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
-  ASSET_TYPE_LABELS, formatDateShort
+  ASSET_TYPE_LABELS, formatDateShort,
+  getWarrantyStatus, WARRANTY_STATUS_LABELS, WARRANTY_STATUS_COLORS,
 } from '@/lib/utils'
+import { Plus } from 'lucide-react'
 
 export default async function AssetsPage() {
   const supabase = await createClient()
@@ -21,53 +23,52 @@ export default async function AssetsPage() {
     .is('returned_at', null)
 
   const holderMap = new Map(
-    assignments?.map((a) => [a.asset_id, a.user as any]) ?? []
+    assignments?.map((a) => [a.asset_id, a.user as unknown as { full_name: string; department?: string }]) ?? []
   )
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-w-6xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Inventário</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{assets?.length ?? 0} ativos cadastrados</p>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Inventário</h1>
+          <p className="text-[13px] text-zinc-500 mt-0.5">{assets?.length ?? 0} ativos cadastrados</p>
         </div>
         <Link
           href="/assets/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-zinc-950 hover:bg-zinc-300 transition-colors"
         >
-          + Novo Ativo
+          <Plus className="h-3.5 w-3.5" />
+          Novo Ativo
         </Link>
       </div>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Ativo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Marca / Modelo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Responsável</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Aquisição</th>
+              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Ativo</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Tipo</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Garantia</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Responsável</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Aquisição</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-zinc-800/60">
               {assets?.map((asset) => {
                 const holder = holderMap.get(asset.id)
+                const warranty = getWarrantyStatus(asset.warranty_end_date)
                 return (
-                  <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={asset.id} className="hover:bg-zinc-900/60 transition-colors">
                     <td className="px-4 py-3">
-                      <Link href={`/assets/${asset.id}`} className="hover:text-indigo-600">
-                        <p className="font-medium text-gray-900">{asset.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 font-mono">{asset.asset_tag}</p>
+                      <Link href={`/assets/${asset.id}`} className="group">
+                        <p className="font-medium text-zinc-200 group-hover:text-white">{asset.name}</p>
+                        <p className="text-xs text-zinc-600 mt-0.5 font-mono">{asset.asset_tag}</p>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-zinc-400">
                       {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS]}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {[asset.brand, asset.model].filter(Boolean).join(' · ') || <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <Badge className={ASSET_STATUS_COLORS[asset.status as keyof typeof ASSET_STATUS_COLORS]}>
@@ -75,24 +76,29 @@ export default async function AssetsPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
+                      <Badge className={WARRANTY_STATUS_COLORS[warranty]}>
+                        {WARRANTY_STATUS_LABELS[warranty]}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
                       {holder ? (
                         <div>
-                          <p className="text-gray-700">{holder.full_name}</p>
-                          {holder.department && <p className="text-xs text-gray-400">{holder.department}</p>}
+                          <p className="text-zinc-300">{holder.full_name}</p>
+                          {holder.department && <p className="text-xs text-zinc-600">{holder.department}</p>}
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic text-xs">Sem responsável</span>
+                        <span className="text-zinc-600 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {asset.purchase_date ? formatDateShort(asset.purchase_date) : <span className="text-gray-400">—</span>}
+                    <td className="px-4 py-3 text-zinc-500 text-xs">
+                      {asset.purchase_date ? formatDateShort(asset.purchase_date) : '—'}
                     </td>
                   </tr>
                 )
               })}
               {(!assets || assets.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-600">
                     Nenhum ativo cadastrado.
                   </td>
                 </tr>
