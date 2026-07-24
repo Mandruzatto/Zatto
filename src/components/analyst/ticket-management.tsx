@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
@@ -33,14 +34,20 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     type: ticket.type,
     area: ticket.area ?? '',
     assignee_id: ticket.assignee_id ?? '',
+    resolution: ticket.resolution ?? '',
   })
+
+  const needsResolution = form.status === 'resolved' || form.status === 'closed'
 
   const dirty =
     form.status !== ticket.status ||
     form.priority !== ticket.priority ||
     form.type !== ticket.type ||
     form.area !== (ticket.area ?? '') ||
-    form.assignee_id !== (ticket.assignee_id ?? '')
+    form.assignee_id !== (ticket.assignee_id ?? '') ||
+    form.resolution !== (ticket.resolution ?? '')
+
+  const missingResolution = needsResolution && !form.resolution.trim()
 
   async function handleSave() {
     setSaving(true)
@@ -51,18 +58,24 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
       type: form.type,
       area: form.area || null,
       assignee_id: form.assignee_id || null,
+      resolution: needsResolution ? form.resolution.trim() || null : null,
     }
 
-    if (['resolved', 'closed'].includes(form.status) && !ticket.resolved_at) {
+    if (needsResolution && !ticket.resolved_at) {
       updates.resolved_at = new Date().toISOString()
     }
-    if (!['resolved', 'closed'].includes(form.status)) {
+    if (!needsResolution) {
       updates.resolved_at = null
     }
 
-    await supabase.from('tickets').update(updates).eq('id', ticket.id)
+    const { error } = await supabase.from('tickets').update(updates).eq('id', ticket.id)
 
     setSaving(false)
+    if (error) {
+      toast('Erro ao salvar alterações', 'error')
+      return
+    }
+    toast('Alterações salvas')
     router.refresh()
   }
 
@@ -92,6 +105,18 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
           value={form.status}
           onChange={(e) => setForm({ ...form, status: e.target.value as TicketStatus })}
         />
+        {needsResolution && (
+          <Textarea
+            label="Resolução"
+            placeholder="Descreva como o chamado foi resolvido..."
+            rows={3}
+            value={form.resolution}
+            onChange={(e) => setForm({ ...form, resolution: e.target.value })}
+            hint={form.status === 'closed'
+              ? 'Obrigatório para encerrar o chamado'
+              : 'Obrigatório para resolver o chamado'}
+          />
+        )}
         <Select
           label="Prioridade"
           options={priorityOptions}
@@ -116,7 +141,7 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty}
+          disabled={!dirty || missingResolution}
           className="w-full"
           size="sm"
         >
@@ -142,16 +167,21 @@ export function CommentForm({ ticketId }: { ticketId: string }) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    await supabase.from('ticket_comments').insert({
+    const { error } = await supabase.from('ticket_comments').insert({
       ticket_id: ticketId,
       author_id: user.id,
       content: content.trim(),
       is_internal: isInternal,
     })
 
+    setSending(false)
+    if (error) {
+      toast('Erro ao enviar comentário', 'error')
+      return
+    }
+    toast(isInternal ? 'Nota interna salva' : 'Resposta enviada')
     setContent('')
     setIsInternal(false)
-    setSending(false)
     router.refresh()
   }
 

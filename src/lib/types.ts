@@ -30,6 +30,7 @@ export interface Ticket {
   priority: TicketPriority
   type: TicketType
   area?: TicketArea | null
+  resolution?: string | null
   requester_id: string
   assignee_id?: string
   created_at: string

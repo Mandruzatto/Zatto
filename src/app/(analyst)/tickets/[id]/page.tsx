@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TicketManagement, CommentForm } from '@/components/analyst/ticket-management'
+import { TicketAssetsManager } from '@/components/analyst/ticket-assets'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
@@ -43,6 +44,7 @@ export default async function TicketDetailPage({
     { data: requesterAssets },
     { data: comments },
     { data: analysts },
+    { data: allAssets },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -56,6 +58,7 @@ export default async function TicketDetailPage({
       .eq('ticket_id', id)
       .order('created_at', { ascending: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
+    supabase.from('assets').select('id, asset_tag, name').order('name'),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -104,6 +107,18 @@ export default async function TicketDetailPage({
               <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.description}</p>
             </CardContent>
           </Card>
+
+          {ticket.resolution && (
+            <Card className="border-emerald-500/20">
+              <CardHeader><CardTitle>Resolução</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.resolution}</p>
+                {ticket.resolved_at && (
+                  <p className="text-xs text-zinc-600 mt-2.5">Resolvido em {formatDate(ticket.resolved_at)}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -213,23 +228,17 @@ export default async function TicketDetailPage({
             </CardContent>
           </Card>
 
-          {ticketAssets && ticketAssets.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle>Ativos vinculados</CardTitle></CardHeader>
-              <CardContent className="space-y-2.5">
-                {ticketAssets.map((ta) => {
-                  const asset = ta.asset as unknown as Asset
-                  return (
-                    <Link key={asset.id} href={`/assets/${asset.id}`} className="flex items-center gap-2 text-[13px] group">
-                      <Monitor className="h-4 w-4 text-zinc-600 shrink-0" />
-                      <span className="text-zinc-300 group-hover:text-white transition-colors">{asset.name}</span>
-                      <span className="text-zinc-600 text-xs ml-auto font-mono">{asset.asset_tag}</span>
-                    </Link>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          )}
+          <TicketAssetsManager
+            ticketId={ticket.id}
+            linkedAssets={(ticketAssets ?? []).map((ta) => {
+              const asset = ta.asset as unknown as Asset
+              return { id: asset.id, asset_tag: asset.asset_tag, name: asset.name }
+            })}
+            allAssets={allAssets ?? []}
+            requesterAssetIds={(requesterAssets ?? []).map(
+              (ra) => (ra.asset as unknown as Asset).id
+            )}
+          />
         </div>
       </div>
     </div>

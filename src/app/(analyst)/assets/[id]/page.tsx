@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AssetEdit, AssetAssignmentPanel } from '@/components/analyst/asset-management'
 import {
   ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
   ASSET_TYPE_LABELS, TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
@@ -10,7 +11,7 @@ import {
 } from '@/lib/utils'
 import { User, Ticket, ShieldCheck, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import type { TicketStatus, WarrantyStatus } from '@/lib/types'
+import type { Asset, TicketStatus, WarrantyStatus } from '@/lib/types'
 
 export default async function AssetDetailPage({
   params,
@@ -28,18 +29,27 @@ export default async function AssetDetailPage({
 
   if (!asset) notFound()
 
-  const { data: assignments } = await supabase
-    .from('asset_assignments')
-    .select('*, user:profiles!user_id(id, full_name, email, department)')
-    .eq('asset_id', id)
-    .order('assigned_at', { ascending: false })
+  const [
+    { data: assignments },
+    { data: ticketAssets },
+    { data: users },
+  ] = await Promise.all([
+    supabase
+      .from('asset_assignments')
+      .select('*, user:profiles!user_id(id, full_name, email, department)')
+      .eq('asset_id', id)
+      .order('assigned_at', { ascending: false }),
+    supabase
+      .from('ticket_assets')
+      .select('ticket:tickets(id, ticket_number, title, status, created_at)')
+      .eq('asset_id', id),
+    supabase
+      .from('profiles')
+      .select('id, full_name, department')
+      .order('full_name'),
+  ])
 
   const currentAssignment = assignments?.find((a) => !a.returned_at)
-
-  const { data: ticketAssets } = await supabase
-    .from('ticket_assets')
-    .select('ticket:tickets(id, ticket_number, title, status, created_at)')
-    .eq('asset_id', id)
 
   const warranty = getWarrantyStatus(asset.warranty_end_date)
   const warrantyDays = asset.warranty_end_date ? daysUntil(asset.warranty_end_date) : null
@@ -85,51 +95,7 @@ export default async function AssetDetailPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 space-y-5">
-          <Card>
-            <CardHeader><CardTitle>Informações do ativo</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-zinc-600">Número de série</p>
-                <p className="text-[13px] font-medium text-zinc-200 mt-0.5 font-mono">
-                  {asset.serial_number ?? '—'}
-                </p>
-              </div>
-              {asset.phone_line && (
-                <div>
-                  <p className="text-xs text-zinc-600">Linha / Chip</p>
-                  <p className="text-[13px] font-medium text-zinc-200 mt-0.5 font-mono">
-                    {asset.phone_line}
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-zinc-600">Data de aquisição</p>
-                <p className="text-[13px] font-medium text-zinc-200 mt-0.5">
-                  {asset.purchase_date ? formatDateShort(asset.purchase_date) : '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-zinc-600">Fim da garantia</p>
-                <p className="text-[13px] font-medium text-zinc-200 mt-0.5">
-                  {asset.warranty_end_date ? formatDateShort(asset.warranty_end_date) : 'Sem garantia registrada'}
-                </p>
-              </div>
-              {warrantyDays !== null && warrantyDays > 0 && (
-                <div>
-                  <p className="text-xs text-zinc-600">Tempo restante</p>
-                  <p className="text-[13px] font-medium text-zinc-200 mt-0.5">
-                    {warrantyDays} dia{warrantyDays === 1 ? '' : 's'}
-                  </p>
-                </div>
-              )}
-              {asset.notes && (
-                <div className="col-span-2">
-                  <p className="text-xs text-zinc-600">Observações</p>
-                  <p className="text-[13px] text-zinc-300 mt-0.5 whitespace-pre-wrap">{asset.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <AssetEdit asset={asset as unknown as Asset} />
 
           <Card>
             <CardHeader><CardTitle>Histórico de atribuições</CardTitle></CardHeader>
@@ -161,28 +127,18 @@ export default async function AssetDetailPage({
         </div>
 
         <div className="space-y-5">
-          <Card>
-            <CardHeader><CardTitle>Responsável atual</CardTitle></CardHeader>
-            <CardContent>
-              {currentAssignment ? (
-                <div className="flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4 text-zinc-400" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-zinc-200">
-                      {(currentAssignment as unknown as AssignmentRow).user?.full_name}
-                    </p>
-                    <p className="text-xs text-zinc-600 mt-0.5">
-                      {(currentAssignment as unknown as AssignmentRow).user?.email}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[13px] text-zinc-600">Sem responsável atribuído.</p>
-              )}
-            </CardContent>
-          </Card>
+          <AssetAssignmentPanel
+            assetId={asset.id}
+            currentAssignment={
+              currentAssignment
+                ? {
+                    id: currentAssignment.id,
+                    user: (currentAssignment as unknown as AssignmentRow).user,
+                  }
+                : null
+            }
+            users={users ?? []}
+          />
 
           {warranty !== 'none' && (
             <Card>
@@ -200,6 +156,7 @@ export default async function AssetDetailPage({
                   {warranty === 'expired'
                     ? `Expirou em ${formatDateShort(asset.warranty_end_date)}`
                     : `Válida até ${formatDateShort(asset.warranty_end_date)}`}
+                  {warrantyDays !== null && warrantyDays > 0 && ` · ${warrantyDays} dia${warrantyDays === 1 ? '' : 's'} restantes`}
                 </p>
               </CardContent>
             </Card>

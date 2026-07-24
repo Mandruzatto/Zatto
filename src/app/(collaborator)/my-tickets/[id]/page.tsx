@@ -99,6 +99,15 @@ export default async function CollaboratorTicketDetailPage({
         </CardContent>
       </Card>
 
+      {ticket.resolution && (
+        <Card className="border-emerald-500/20">
+          <CardHeader><CardTitle>Resolução</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.resolution}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader><CardTitle>Atualizações ({comments?.length ?? 0})</CardTitle></CardHeader>
         <CardContent className="p-0">
