@@ -1,6 +1,6 @@
 export type UserRole = 'analyst' | 'collaborator'
 
-export type TicketStatus = 'open' | 'in_progress' | 'pending_response' | 'scheduled' | 'resolved' | 'closed'
+export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'scheduled' | 'resolved' | 'closed'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
 export type TicketType = 'incident' | 'request'
 export type TicketArea = 'systems' | 'infrastructure'
@@ -32,6 +32,7 @@ export interface Ticket {
   type: TicketType
   area?: TicketArea | null
   resolution?: string | null
+  pending_reason?: string | null
   requester_id: string
   assignee_id?: string
   created_at: string

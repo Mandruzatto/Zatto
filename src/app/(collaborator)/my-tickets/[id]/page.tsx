@@ -99,6 +99,15 @@ export default async function CollaboratorTicketDetailPage({
         </CardContent>
       </Card>
 
+      {ticket.status === 'pending' && ticket.pending_reason && (
+        <Card className="border-orange-500/20">
+          <CardHeader><CardTitle>Motivo da pendência</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.pending_reason}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {ticket.resolution && (
         <Card className="border-emerald-500/20">
           <CardHeader><CardTitle>Resolução</CardTitle></CardHeader>

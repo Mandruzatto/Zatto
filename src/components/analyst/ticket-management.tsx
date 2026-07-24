@@ -37,9 +37,11 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     area: ticket.area ?? '',
     assignee_id: ticket.assignee_id ?? '',
     resolution: ticket.resolution ?? '',
+    pending_reason: ticket.pending_reason ?? '',
   })
 
   const needsResolution = form.status === 'resolved' || form.status === 'closed'
+  const isPending = form.status === 'pending'
 
   const dirty =
     form.status !== ticket.status ||
@@ -47,9 +49,11 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     form.type !== ticket.type ||
     form.area !== (ticket.area ?? '') ||
     form.assignee_id !== (ticket.assignee_id ?? '') ||
-    form.resolution !== (ticket.resolution ?? '')
+    form.resolution !== (ticket.resolution ?? '') ||
+    form.pending_reason !== (ticket.pending_reason ?? '')
 
   const missingResolution = needsResolution && !form.resolution.trim()
+  const missingPendingReason = isPending && !form.pending_reason.trim()
 
   async function handleSave() {
     setSaving(true)
@@ -61,6 +65,7 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
       area: form.area || null,
       assignee_id: form.assignee_id || null,
       resolution: needsResolution ? form.resolution.trim() || null : null,
+      pending_reason: isPending ? form.pending_reason.trim() || null : null,
     }
 
     if (needsResolution && !ticket.resolved_at) {
@@ -139,6 +144,16 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
               : 'Obrigatório para resolver o chamado'}
           />
         )}
+        {isPending && (
+          <Textarea
+            label="Motivo da pendência"
+            placeholder="Ex: aguardando resposta do colaborador, peça em compra..."
+            rows={3}
+            value={form.pending_reason}
+            onChange={(e) => setForm({ ...form, pending_reason: e.target.value })}
+            hint="Obrigatório ao marcar como Pendente"
+          />
+        )}
         <Select
           label="Prioridade"
           options={priorityOptions}
@@ -163,7 +178,7 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty || missingResolution}
+          disabled={!dirty || missingResolution || missingPendingReason}
           className="w-full"
           size="sm"
         >

@@ -12,6 +12,7 @@ import {
   Settings2,
   Package,
   X,
+  MessageSquare,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -38,14 +39,23 @@ export interface DashboardData {
   recentTickets: (Ticket & { requester: { full_name: string; department?: string } | null })[]
   criticalTickets: (Ticket & { requester: { full_name: string } | null })[]
   warrantyAssets: Asset[]
+  awaitingReply: {
+    id: string
+    ticket_number: string
+    title: string
+    status: TicketStatus
+    requester_name: string
+    last_comment_at: string
+  }[]
 }
 
-type WidgetId = 'stats' | 'progress' | 'pie' | 'warranty' | 'recent' | 'critical'
+type WidgetId = 'stats' | 'progress' | 'pie' | 'awaiting' | 'warranty' | 'recent' | 'critical'
 
 const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats', label: 'Indicadores' },
   { id: 'progress', label: 'Andamento dos chamados' },
   { id: 'pie', label: 'Gráfico de pizza' },
+  { id: 'awaiting', label: 'Aguardando resposta' },
   { id: 'warranty', label: 'Alertas de garantia' },
   { id: 'recent', label: 'Chamados recentes' },
   { id: 'critical', label: 'Chamados críticos' },
@@ -57,6 +67,7 @@ const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   stats: true,
   progress: true,
   pie: true,
+  awaiting: true,
   warranty: true,
   recent: true,
   critical: true,
@@ -167,7 +178,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
   const activeTickets =
     data.statusCounts.open +
     data.statusCounts.in_progress +
-    data.statusCounts.pending_response +
+    data.statusCounts.pending +
     data.statusCounts.scheduled
   const totalTickets = Object.values(data.statusCounts).reduce((a, b) => a + b, 0)
 
@@ -312,6 +323,45 @@ export function DashboardView({ data }: { data: DashboardData }) {
             ) : (
               <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.awaiting && data.awaitingReply.length > 0 && (
+        <Card className="border-blue-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-blue-400" />
+              Aguardando sua resposta
+              <span className="text-xs font-normal text-zinc-600">
+                — a última mensagem foi do colaborador
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-zinc-800/70">
+              {data.awaitingReply.map((ticket) => (
+                <Link
+                  key={ticket.id}
+                  href={`/tickets/${ticket.id}`}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-zinc-200 truncate">{ticket.title}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      <span className="font-mono">{ticket.ticket_number}</span>
+                      {' · '}
+                      <span className="text-blue-400/80">{ticket.requester_name}</span>
+                      {' respondeu em '}
+                      {formatDate(ticket.last_comment_at)}
+                    </p>
+                  </div>
+                  <Badge className={TICKET_STATUS_COLORS[ticket.status]}>
+                    {TICKET_STATUS_LABELS[ticket.status]}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
