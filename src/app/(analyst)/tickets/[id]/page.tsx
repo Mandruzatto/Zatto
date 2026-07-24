@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TicketManagement, CommentForm, ApprovalManagement } from '@/components/analyst/ticket-management'
+import { TicketManagement, CommentForm } from '@/components/analyst/ticket-management'
 import { TicketAssetsManager } from '@/components/analyst/ticket-assets'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
@@ -60,10 +60,15 @@ export default async function TicketDetailPage({
       .order('created_at', { ascending: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
     supabase.from('ticket_approvals').select('*, approver:profiles!approver_id(*)').eq('ticket_id', id).maybeSingle(),
-    supabase.from('profiles').select('id, full_name').eq('can_approve', true).order('full_name'),
+    supabase.from('profiles').select('id, full_name').order('full_name'),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
+  const ticketApproval = approval as unknown as (TicketApproval & {
+    approver?: { full_name?: string } | null
+  }) | null
+  const isApproved = ticket.approval_status === 'approved' || ticketApproval?.decision === 'approved'
+  const isRejected = ticket.approval_status === 'rejected' || ticketApproval?.decision === 'rejected'
 
   type CommentRow = {
     id: string
@@ -97,12 +102,35 @@ export default async function TicketDetailPage({
               {TICKET_AREA_LABELS[ticket.area as TicketArea]}
             </Badge>
           )}
+          {isApproved && (
+            <Badge className="bg-emerald-500/10 text-emerald-400">Aprovado</Badge>
+          )}
+          {isRejected && (
+            <Badge className="bg-red-500/10 text-red-400">Rejeitado</Badge>
+          )}
         </div>
         <h1 className="text-lg font-semibold tracking-tight text-zinc-100">{ticket.title}</h1>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 space-y-5">
+          {isApproved && (
+            <Card className="border-emerald-500/20">
+              <CardHeader><CardTitle>Aprovado — pode seguir o atendimento</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                <p className="text-[13px] text-zinc-300">
+                  Esta solicitação foi aprovada
+                  {ticketApproval?.approver?.full_name ? ` por ${ticketApproval.approver.full_name}` : ''}
+                  {ticketApproval?.decided_at ? ` em ${formatDate(ticketApproval.decided_at)}` : ''}
+                  .
+                </p>
+                {ticketApproval?.comment && (
+                  <p className="text-xs text-zinc-500">Comentário: {ticketApproval.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader><CardTitle>Descrição</CardTitle></CardHeader>
             <CardContent>
@@ -202,14 +230,48 @@ export default async function TicketDetailPage({
           <TicketManagement
             ticket={ticket as unknown as Ticket}
             analysts={analysts ?? []}
+            approvers={approvers ?? []}
+            currentApproval={(approval as unknown as TicketApproval | null) ?? null}
             currentUserId={user!.id}
           />
-          {approval && (
-            <ApprovalManagement
-              approval={approval as unknown as TicketApproval}
-              approvers={approvers ?? []}
-              currentUserId={user!.id}
-            />
+          {ticketApproval?.approver_id && ticket.status === 'awaiting_approval' && (
+            <Card className="border-cyan-500/20">
+              <CardHeader><CardTitle>Fila de aprovação</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                <p className="text-[13px] text-zinc-300">
+                  Aguardando {ticketApproval.approver?.full_name ?? 'aprovador'}
+                </p>
+                <p className="text-xs text-zinc-600">
+                  Altere o aprovador na triagem se precisar redistribuir.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {isApproved && ticketApproval && (
+            <Card className="border-emerald-500/20">
+              <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                <p className="text-[13px] text-emerald-300">Solicitação aprovada</p>
+                <p className="text-xs text-zinc-600">
+                  {ticketApproval.approver?.full_name ?? 'Aprovador'}
+                  {ticketApproval.decided_at ? ` · ${formatDate(ticketApproval.decided_at)}` : ''}
+                </p>
+                {ticketApproval.comment && (
+                  <p className="text-xs text-zinc-500">Comentário: {ticketApproval.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {isRejected && ticketApproval && (
+            <Card className="border-red-500/20">
+              <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
+              <CardContent className="space-y-1">
+                <p className="text-[13px] text-red-300">Solicitação rejeitada</p>
+                {ticketApproval.comment && (
+                  <p className="text-xs text-zinc-500">Motivo: {ticketApproval.comment}</p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {ticket.resolution_due_at && (

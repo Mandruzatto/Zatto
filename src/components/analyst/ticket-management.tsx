@@ -22,10 +22,18 @@ import type { TicketApproval } from '@/lib/types'
 interface TicketManagementProps {
   ticket: Ticket
   analysts: { id: string; full_name: string }[]
+  approvers: { id: string; full_name: string }[]
+  currentApproval?: TicketApproval | null
   currentUserId: string
 }
 
-export function TicketManagement({ ticket, analysts, currentUserId }: TicketManagementProps) {
+export function TicketManagement({
+  ticket,
+  analysts,
+  approvers,
+  currentApproval,
+  currentUserId,
+}: TicketManagementProps) {
   const router = useRouter()
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
@@ -39,10 +47,12 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     assignee_id: ticket.assignee_id ?? '',
     resolution: ticket.resolution ?? '',
     pending_reason: ticket.pending_reason ?? '',
+    approver_id: currentApproval?.approver_id ?? '',
   })
 
   const needsResolution = form.status === 'resolved' || form.status === 'closed'
   const isPending = form.status === 'pending'
+  const needsApprover = form.status === 'awaiting_approval'
 
   const dirty =
     form.status !== ticket.status ||
@@ -51,12 +61,19 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     form.area !== (ticket.area ?? '') ||
     form.assignee_id !== (ticket.assignee_id ?? '') ||
     form.resolution !== (ticket.resolution ?? '') ||
-    form.pending_reason !== (ticket.pending_reason ?? '')
+    form.pending_reason !== (ticket.pending_reason ?? '') ||
+    (needsApprover && form.approver_id !== (currentApproval?.approver_id ?? ''))
 
   const missingResolution = needsResolution && !form.resolution.trim()
   const missingPendingReason = isPending && !form.pending_reason.trim()
+  const missingApprover = needsApprover && !form.approver_id
 
   async function handleSave() {
+    if (missingApprover) {
+      toast('Selecione o aprovador para salvar', 'error')
+      return
+    }
+
     setSaving(true)
 
     const updates: Record<string, unknown> = {
@@ -69,6 +86,12 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
       pending_reason: isPending ? form.pending_reason.trim() || null : null,
     }
 
+    if (needsApprover) {
+      updates.approval_status = 'pending'
+    } else if (ticket.status === 'awaiting_approval' && form.status !== 'awaiting_approval') {
+      updates.approval_status = form.status === 'closed' ? 'cancelled' : ticket.approval_status
+    }
+
     if (needsResolution && !ticket.resolved_at) {
       updates.resolved_at = new Date().toISOString()
     }
@@ -77,12 +100,36 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
     }
 
     const { error } = await supabase.from('tickets').update(updates).eq('id', ticket.id)
-
-    setSaving(false)
     if (error) {
+      setSaving(false)
       toast('Erro ao salvar alterações', 'error')
       return
     }
+
+    if (needsApprover) {
+      const approvalPayload = {
+        ticket_id: ticket.id,
+        approver_id: form.approver_id,
+        assigned_by: currentUserId,
+        decision: 'pending' as const,
+        comment: null,
+        decided_at: null,
+        requested_at: new Date().toISOString(),
+      }
+
+      const { error: approvalError } = currentApproval
+        ? await supabase.from('ticket_approvals').update(approvalPayload).eq('id', currentApproval.id)
+        : await supabase.from('ticket_approvals').insert(approvalPayload)
+
+      if (approvalError) {
+        setSaving(false)
+        toast('Chamado salvo, mas não foi possível definir o aprovador', 'error')
+        router.refresh()
+        return
+      }
+    }
+
+    setSaving(false)
     toast('Alterações salvas')
     router.refresh()
   }
@@ -155,6 +202,18 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
             hint="Obrigatório ao marcar como Pendente"
           />
         )}
+        {needsApprover && (
+          <div className="space-y-1.5">
+            <Select
+              label="Aprovador"
+              options={approvers.map((profile) => ({ value: profile.id, label: profile.full_name }))}
+              placeholder="Selecionar aprovador..."
+              value={form.approver_id}
+              onChange={(e) => setForm({ ...form, approver_id: e.target.value })}
+            />
+            <p className="text-xs text-zinc-600">Obrigatório para salvar com status Aguardando aprovação</p>
+          </div>
+        )}
         <Select
           label="Prioridade"
           options={priorityOptions}
@@ -179,7 +238,7 @@ export function TicketManagement({ ticket, analysts, currentUserId }: TicketMana
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty || missingResolution || missingPendingReason}
+          disabled={!dirty || missingResolution || missingPendingReason || missingApprover}
           className="w-full"
           size="sm"
         >

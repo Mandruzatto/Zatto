@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { NavUser } from '@/components/nav-user'
 
 const navItems = [
   { href: '/portal', label: 'Início', icon: Home },
@@ -21,7 +22,13 @@ const navItems = [
   { href: '/my-assets', label: 'Meus Equipamentos', icon: Monitor },
 ]
 
-export function CollaboratorSidebar({ canApprove = false }: { canApprove?: boolean }) {
+export function CollaboratorSidebar({
+  canApprove = false,
+  user,
+}: {
+  canApprove?: boolean
+  user: { fullName: string; email: string }
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -66,6 +73,7 @@ export function CollaboratorSidebar({ canApprove = false }: { canApprove?: boole
       </nav>
 
       <div className="border-t border-zinc-800/80 p-2.5">
+        <NavUser fullName={user.fullName} email={user.email} roleLabel="Colaborador" />
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200 transition-colors"

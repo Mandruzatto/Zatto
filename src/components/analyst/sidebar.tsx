@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { NavUser } from '@/components/nav-user'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,7 +23,11 @@ const navItems = [
   { href: '/settings', label: 'Configurações', icon: Settings },
 ]
 
-export function AnalystSidebar() {
+export function AnalystSidebar({
+  user,
+}: {
+  user: { fullName: string; email: string }
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -67,6 +72,7 @@ export function AnalystSidebar() {
       </nav>
 
       <div className="border-t border-zinc-800/80 p-2.5">
+        <NavUser fullName={user.fullName} email={user.email} roleLabel="Analista" />
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200 transition-colors"

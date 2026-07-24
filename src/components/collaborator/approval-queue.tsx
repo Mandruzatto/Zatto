@@ -12,7 +12,19 @@ import { formatDate } from '@/lib/utils'
 import type { TicketApproval } from '@/lib/types'
 import { Check, X } from 'lucide-react'
 
-export function ApprovalQueue({ approvals, enabled }: { approvals: TicketApproval[]; enabled: boolean }) {
+type ApprovalTicket = NonNullable<TicketApproval['ticket']> & {
+  catalog_item?: { title: string } | null
+}
+
+export function ApprovalQueue({
+  approvals,
+  enabled,
+  viewer,
+}: {
+  approvals: TicketApproval[]
+  enabled: boolean
+  viewer: { fullName: string; email: string }
+}) {
   const router = useRouter()
   const supabase = createClient()
   const [comments, setComments] = useState<Record<string, string>>({})
@@ -36,17 +48,37 @@ export function ApprovalQueue({ approvals, enabled }: { approvals: TicketApprova
     router.refresh()
   }
 
-  if (!enabled) return <div className="p-6 text-sm text-zinc-500">Você não possui permissão de aprovador.</div>
+  if (!enabled) {
+    return (
+      <div className="mx-auto max-w-4xl p-6 space-y-3">
+        <h1 className="text-lg font-semibold text-zinc-100">Aprovações</h1>
+        <p className="text-sm text-zinc-500">Você não possui permissão de aprovador.</p>
+        <p className="text-xs text-zinc-600">Conectado como {viewer.fullName} · {viewer.email}</p>
+      </div>
+    )
+  }
+
+  const pending = approvals.filter((a) => a.decision === 'pending')
+  const visible = approvals.filter((a) => a.ticket)
+  const orphanPending = pending.filter((a) => !a.ticket)
 
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-5">
       <div>
         <h1 className="text-lg font-semibold text-zinc-100">Aprovações</h1>
         <p className="mt-0.5 text-[13px] text-zinc-500">Solicitações que aguardam sua decisão.</p>
+        <p className="mt-1 text-xs text-zinc-600">Conectado como {viewer.fullName} · {viewer.email}</p>
       </div>
-      {approvals.length ? approvals.map((approval) => {
-        const ticket = approval.ticket!
-        const catalogTitle = (ticket as unknown as { catalog_item?: { title: string } }).catalog_item?.title
+      {orphanPending.length > 0 && (
+        <Card className="border-amber-500/20">
+          <CardContent className="py-4 text-[13px] text-amber-300">
+            {orphanPending.length} aprovação(ões) pendente(s) sem dados do chamado. Peça ao analista para reatribuir o aprovador.
+          </CardContent>
+        </Card>
+      )}
+      {visible.length ? visible.map((approval) => {
+        const ticket = approval.ticket as ApprovalTicket
+        const catalogTitle = ticket.catalog_item?.title
         return (
           <Card key={approval.id} className={approval.decision === 'pending' ? 'border-cyan-500/20' : ''}>
             <CardHeader className="flex flex-row items-start justify-between">
@@ -67,16 +99,28 @@ export function ApprovalQueue({ approvals, enabled }: { approvals: TicketApprova
               {ticket.form_responses && Object.keys(ticket.form_responses).length > 0 && (
                 <div className="grid grid-cols-2 gap-3 rounded-lg bg-zinc-900/70 p-3">
                   {Object.entries(ticket.form_responses).map(([key, value]) => (
-                    <div key={key}><p className="text-[11px] uppercase text-zinc-600">{key.replaceAll('_', ' ')}</p><p className="text-[13px] text-zinc-300">{value}</p></div>
+                    <div key={key}>
+                      <p className="text-[11px] uppercase text-zinc-600">{key.replaceAll('_', ' ')}</p>
+                      <p className="text-[13px] text-zinc-300">{value}</p>
+                    </div>
                   ))}
                 </div>
               )}
               {approval.decision === 'pending' ? (
                 <>
-                  <Textarea placeholder="Comentário ou motivo da rejeição..." value={comments[approval.id] ?? ''} onChange={(e) => setComments({ ...comments, [approval.id]: e.target.value })} rows={3} />
+                  <Textarea
+                    placeholder="Comentário ou motivo da rejeição..."
+                    value={comments[approval.id] ?? ''}
+                    onChange={(e) => setComments({ ...comments, [approval.id]: e.target.value })}
+                    rows={3}
+                  />
                   <div className="flex gap-2">
-                    <Button loading={working === approval.id} onClick={() => decide(approval, 'approved')}><Check className="h-4 w-4" />Aprovar</Button>
-                    <Button loading={working === approval.id} variant="danger" onClick={() => decide(approval, 'rejected')}><X className="h-4 w-4" />Rejeitar</Button>
+                    <Button loading={working === approval.id} onClick={() => decide(approval, 'approved')}>
+                      <Check className="h-4 w-4" />Aprovar
+                    </Button>
+                    <Button loading={working === approval.id} variant="danger" onClick={() => decide(approval, 'rejected')}>
+                      <X className="h-4 w-4" />Rejeitar
+                    </Button>
                   </div>
                 </>
               ) : approval.comment ? <p className="text-xs text-zinc-500">Comentário: {approval.comment}</p> : null}

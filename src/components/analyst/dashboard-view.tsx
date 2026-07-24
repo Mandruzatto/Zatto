@@ -12,6 +12,7 @@ import {
   Settings2,
   X,
   MessageSquare,
+  CheckCircle2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -46,17 +47,27 @@ export interface DashboardData {
     requester_name: string
     last_comment_at: string
   }[]
+  newlyApproved: {
+    id: string
+    ticket_number: string
+    title: string
+    status: TicketStatus
+    requester_name: string
+    approver_name: string
+    decided_at: string
+  }[]
   slaBreached: number
   slaAtRisk: number
 }
 
-type WidgetId = 'stats' | 'progress' | 'pie' | 'awaiting' | 'warranty' | 'recent' | 'critical'
+type WidgetId = 'stats' | 'progress' | 'pie' | 'awaiting' | 'approved' | 'warranty' | 'recent' | 'critical'
 
 const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats', label: 'Indicadores' },
   { id: 'progress', label: 'Andamento dos chamados' },
   { id: 'pie', label: 'Gráfico de pizza' },
   { id: 'awaiting', label: 'Aguardando resposta' },
+  { id: 'approved', label: 'Aprovados' },
   { id: 'warranty', label: 'Alertas de garantia' },
   { id: 'recent', label: 'Chamados recentes' },
   { id: 'critical', label: 'Chamados críticos' },
@@ -69,6 +80,7 @@ const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   progress: true,
   pie: true,
   awaiting: true,
+  approved: true,
   warranty: true,
   recent: true,
   critical: true,
@@ -364,6 +376,45 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <Badge className={TICKET_STATUS_COLORS[ticket.status]}>
                     {TICKET_STATUS_LABELS[ticket.status]}
                   </Badge>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.approved && data.newlyApproved.length > 0 && (
+        <Card className="border-emerald-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              Aprovados — aguardando atendimento
+              <span className="text-xs font-normal text-zinc-600">
+                — liberados pelo gestor e ainda abertos
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-zinc-800/70">
+              {data.newlyApproved.map((ticket) => (
+                <Link
+                  key={ticket.id}
+                  href={`/tickets/${ticket.id}`}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-zinc-200 truncate">{ticket.title}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      <span className="font-mono">{ticket.ticket_number}</span>
+                      {' · '}
+                      {ticket.requester_name}
+                      {' · aprovado por '}
+                      <span className="text-emerald-400/80">{ticket.approver_name}</span>
+                      {' em '}
+                      {formatDate(ticket.decided_at)}
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-500/10 text-emerald-400">Aprovado</Badge>
                 </Link>
               ))}
             </div>

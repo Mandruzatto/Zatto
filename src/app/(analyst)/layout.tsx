@@ -15,7 +15,7 @@ export default async function AnalystLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name, email')
     .eq('id', user.id)
     .single()
 
@@ -23,7 +23,12 @@ export default async function AnalystLayout({
 
   return (
     <div className="flex h-screen bg-zinc-950">
-      <AnalystSidebar />
+      <AnalystSidebar
+        user={{
+          fullName: profile.full_name || user.email || 'Analista',
+          email: profile.email || user.email || '',
+        }}
+      />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center border-b border-zinc-800/80 px-6 py-2.5">
           <GlobalSearch />

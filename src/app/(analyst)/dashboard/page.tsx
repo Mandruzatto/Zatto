@@ -14,6 +14,7 @@ export default async function DashboardPage() {
     { data: criticalTickets },
     { data: warrantyAssets },
     { data: activeTicketRows },
+    { data: approvedRows },
   ] = await Promise.all([
     supabase.from('tickets').select('status, resolution_due_at'),
     supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'in_use'),
@@ -41,6 +42,16 @@ export default async function DashboardPage() {
       .from('tickets')
       .select('id, ticket_number, title, status, requester_id, requester:profiles!requester_id(full_name)')
       .in('status', ['open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled']),
+    supabase
+      .from('tickets')
+      .select(`
+        id, ticket_number, title, status, updated_at,
+        requester:profiles!requester_id(full_name),
+        approval:ticket_approvals(decided_at, decision, approver:profiles!approver_id(full_name))
+      `)
+      .eq('approval_status', 'approved')
+      .eq('status', 'open')
+      .order('updated_at', { ascending: true }),
   ])
 
   // Tickets ativos cuja última mensagem pública na conversa foi do colaborador (solicitante)
@@ -73,6 +84,28 @@ export default async function DashboardPage() {
       }))
       .sort((a, b) => a.last_comment_at.localeCompare(b.last_comment_at))
   }
+
+  type ApprovedJoin = {
+    decided_at?: string | null
+    decision?: string
+    approver?: { full_name?: string } | null
+  }
+
+  const newlyApproved: DashboardData['newlyApproved'] = (approvedRows ?? [])
+    .map((t) => {
+      const approvalRaw = t.approval as unknown as ApprovedJoin | ApprovedJoin[] | null
+      const approval = Array.isArray(approvalRaw) ? approvalRaw[0] : approvalRaw
+      return {
+        id: t.id,
+        ticket_number: t.ticket_number,
+        title: t.title,
+        status: t.status as TicketStatus,
+        requester_name: (t.requester as unknown as { full_name: string } | null)?.full_name ?? '',
+        approver_name: approval?.approver?.full_name ?? 'Aprovador',
+        decided_at: approval?.decided_at ?? t.updated_at ?? new Date(0).toISOString(),
+      }
+    })
+    .sort((a, b) => a.decided_at.localeCompare(b.decided_at))
 
   const statusCounts: Record<TicketStatus, number> = {
     open: 0,
@@ -107,6 +140,7 @@ export default async function DashboardPage() {
     criticalTickets: (criticalTickets ?? []) as unknown as DashboardData['criticalTickets'],
     warrantyAssets: (warrantyAssets ?? []) as unknown as Asset[],
     awaitingReply,
+    newlyApproved,
     slaBreached,
     slaAtRisk,
   }

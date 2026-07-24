@@ -15,6 +15,16 @@ import type { TicketPriority } from '@/lib/types'
 
 type Row = Record<string, unknown>
 
+const emptyPolicy = {
+  id: '',
+  name: '',
+  priority: 'medium',
+  first_hours: '4',
+  resolution_hours: '24',
+  calendar_id: '',
+  precedence: '30',
+}
+
 export function ItsmSettings({
   policies, calendars, catalog, articles, categories,
 }: { policies: Row[]; calendars: Row[]; catalog: Row[]; articles: Row[]; categories: Row[] }) {
@@ -22,23 +32,53 @@ export function ItsmSettings({
   const supabase = createClient()
   const [tab, setTab] = useState<'catalog' | 'sla' | 'knowledge'>('catalog')
   const [saving, setSaving] = useState(false)
-  const [policy, setPolicy] = useState({ name: '', priority: 'medium', first_hours: '4', resolution_hours: '24' })
+  const [policy, setPolicy] = useState({
+    ...emptyPolicy,
+    calendar_id: (calendars[0]?.id as string) ?? '',
+  })
   const [item, setItem] = useState({ title: '', slug: '', description: '', keywords: '', requires_approval: false })
   const [article, setArticle] = useState({ title: '', slug: '', summary: '', content: '', keywords: '', category_id: '', published: true })
 
-  async function createPolicy(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    const { error } = await supabase.from('sla_policies').insert({
+  const editing = Boolean(policy.id)
+
+  function startEdit(row: Row) {
+    setPolicy({
+      id: row.id as string,
+      name: row.name as string,
+      priority: (row.priority as string) ?? 'medium',
+      first_hours: String(Number(row.first_response_minutes) / 60),
+      resolution_hours: String(Number(row.resolution_minutes) / 60),
+      calendar_id: (row.calendar_id as string) ?? ((calendars[0]?.id as string) ?? ''),
+      precedence: String(row.precedence ?? 30),
+    })
+  }
+
+  function resetPolicy() {
+    setPolicy({
+      ...emptyPolicy,
+      calendar_id: (calendars[0]?.id as string) ?? '',
+    })
+  }
+
+  async function savePolicy(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const payload = {
       name: policy.name,
-      calendar_id: calendars[0]?.id,
+      calendar_id: policy.calendar_id || calendars[0]?.id,
       priority: policy.priority as TicketPriority,
       first_response_minutes: Math.round(Number(policy.first_hours) * 60),
       resolution_minutes: Math.round(Number(policy.resolution_hours) * 60),
-      precedence: 5,
-    })
+      precedence: Number(policy.precedence) || 30,
+    }
+    const { error } = editing
+      ? await supabase.from('sla_policies').update(payload).eq('id', policy.id)
+      : await supabase.from('sla_policies').insert(payload)
     setSaving(false)
-    if (error) return toast('Erro ao criar política', 'error')
-    toast('Política de SLA criada'); setPolicy({ name: '', priority: 'medium', first_hours: '4', resolution_hours: '24' }); router.refresh()
+    if (error) return toast(editing ? 'Erro ao atualizar política' : 'Erro ao criar política', 'error')
+    toast(editing ? 'Política de SLA atualizada' : 'Política de SLA criada')
+    resetPolicy()
+    router.refresh()
   }
 
   async function createCatalog(e: React.FormEvent) {
@@ -112,16 +152,55 @@ export function ItsmSettings({
       </div>}
 
       {tab === 'sla' && <div className="grid gap-5 xl:grid-cols-2">
-        <Card><CardHeader><CardTitle>Nova política</CardTitle></CardHeader><CardContent>
-          <form onSubmit={createPolicy} className="space-y-3">
-            <Input label="Nome" value={policy.name} onChange={(e)=>setPolicy({...policy,name:e.target.value})} required />
-            <Select label="Prioridade" options={Object.entries(TICKET_PRIORITY_LABELS).map(([value,label])=>({value,label}))} value={policy.priority} onChange={(e)=>setPolicy({...policy,priority:e.target.value})}/>
-            <div className="grid grid-cols-2 gap-3"><Input label="1ª resposta (horas úteis)" type="number" min="0.5" step="0.5" value={policy.first_hours} onChange={(e)=>setPolicy({...policy,first_hours:e.target.value})}/><Input label="Resolução (horas úteis)" type="number" min="1" step="1" value={policy.resolution_hours} onChange={(e)=>setPolicy({...policy,resolution_hours:e.target.value})}/></div>
-            <Button loading={saving} type="submit">Criar política</Button>
-          </form>
-        </CardContent></Card>
-        <Card><CardHeader><CardTitle>Políticas ativas</CardTitle></CardHeader><CardContent className="space-y-2">
-          {policies.map((row)=><div key={row.id as string} className="flex items-center justify-between border-b border-zinc-800/70 py-2.5"><div><p className="text-[13px] text-zinc-200">{row.name as string}</p><p className="text-xs text-zinc-600">{Number(row.first_response_minutes)/60}h resposta · {Number(row.resolution_minutes)/60}h resolução</p></div><button onClick={()=>toggle('sla_policies',row.id,'is_active',!row.is_active)}><Badge className={row.is_active?'bg-emerald-500/10 text-emerald-400':'bg-zinc-800 text-zinc-500'}>{row.is_active?'Ativa':'Inativa'}</Badge></button></div>)}
+        <Card>
+          <CardHeader>
+            <CardTitle>{editing ? 'Editar política' : 'Nova política'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={savePolicy} className="space-y-3">
+              <Input label="Nome" value={policy.name} onChange={(e)=>setPolicy({...policy,name:e.target.value})} required />
+              <Select label="Prioridade" options={Object.entries(TICKET_PRIORITY_LABELS).map(([value,label])=>({value,label}))} value={policy.priority} onChange={(e)=>setPolicy({...policy,priority:e.target.value})}/>
+              {calendars.length > 0 && (
+                <Select
+                  label="Calendário"
+                  options={calendars.map((c)=>({value:c.id as string,label:c.name as string}))}
+                  value={policy.calendar_id}
+                  onChange={(e)=>setPolicy({...policy,calendar_id:e.target.value})}
+                />
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="1ª resposta (horas úteis)" type="number" min="0.5" step="0.5" value={policy.first_hours} onChange={(e)=>setPolicy({...policy,first_hours:e.target.value})}/>
+                <Input label="Resolução (horas úteis)" type="number" min="1" step="1" value={policy.resolution_hours} onChange={(e)=>setPolicy({...policy,resolution_hours:e.target.value})}/>
+              </div>
+              <Input label="Precedência" type="number" min="1" value={policy.precedence} onChange={(e)=>setPolicy({...policy,precedence:e.target.value})} hint="Menor número = maior prioridade na seleção automática" />
+              <div className="flex gap-2">
+                <Button loading={saving} type="submit">{editing ? 'Salvar alterações' : 'Criar política'}</Button>
+                {editing && <Button type="button" variant="secondary" onClick={resetPolicy}>Cancelar</Button>}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+        <Card><CardHeader><CardTitle>Políticas</CardTitle></CardHeader><CardContent className="space-y-2">
+          {policies.map((row)=>(
+            <div key={row.id as string} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 py-2.5">
+              <button type="button" className="min-w-0 text-left" onClick={() => startEdit(row)}>
+                <p className="text-[13px] text-zinc-200 hover:text-white">{row.name as string}</p>
+                <p className="text-xs text-zinc-600">
+                  {TICKET_PRIORITY_LABELS[row.priority as TicketPriority] ?? String(row.priority)}
+                  {' · '}
+                  {Number(row.first_response_minutes)/60}h resposta · {Number(row.resolution_minutes)/60}h resolução
+                </p>
+              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button type="button" size="sm" variant="secondary" onClick={() => startEdit(row)}>Editar</Button>
+                <button onClick={()=>toggle('sla_policies',row.id,'is_active',!row.is_active)}>
+                  <Badge className={row.is_active?'bg-emerald-500/10 text-emerald-400':'bg-zinc-800 text-zinc-500'}>
+                    {row.is_active?'Ativa':'Inativa'}
+                  </Badge>
+                </button>
+              </div>
+            </div>
+          ))}
         </CardContent></Card>
       </div>}
 

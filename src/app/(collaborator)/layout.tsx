@@ -12,15 +12,30 @@ export default async function CollaboratorLayout({
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('can_approve')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { count }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('can_approve, full_name, email')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('ticket_approvals')
+      .select('id', { count: 'exact', head: true })
+      .eq('approver_id', user.id)
+      .eq('decision', 'pending'),
+  ])
+
+  const canApprove = (profile?.can_approve ?? false) || (count ?? 0) > 0
 
   return (
     <div className="flex h-screen bg-zinc-950">
-      <CollaboratorSidebar canApprove={profile?.can_approve ?? false} />
+      <CollaboratorSidebar
+        canApprove={canApprove}
+        user={{
+          fullName: profile?.full_name || user.email || 'Usuário',
+          email: profile?.email || user.email || '',
+        }}
+      />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
