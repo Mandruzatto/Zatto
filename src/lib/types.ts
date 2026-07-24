@@ -16,6 +16,7 @@ export interface Profile {
   full_name: string
   role: UserRole
   department?: string
+  job_title?: string | null
   avatar_url?: string
   created_at: string
   updated_at: string

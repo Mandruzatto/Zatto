@@ -9,15 +9,16 @@ import {
   cn,
 } from '@/lib/utils'
 import { Plus } from 'lucide-react'
+import { ListSearch } from '@/components/ui/list-search'
 import type { AssetType } from '@/lib/types'
 
 export default async function AssetsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>
+  searchParams: Promise<{ type?: string; q?: string }>
 }) {
   const supabase = await createClient()
-  const { type: typeFilter } = await searchParams
+  const { type: typeFilter, q } = await searchParams
 
   const { data: allAssets } = await supabase
     .from('assets')
@@ -45,9 +46,14 @@ export default async function AssetsPage({
       .map(([key, label]) => ({ key, label, count: typeCounts.get(key) ?? 0 })),
   ]
 
-  const assets = typeFilter
-    ? allAssets?.filter((a) => a.type === typeFilter)
-    : allAssets
+  const term = q?.trim().toLowerCase()
+  const assets = allAssets?.filter((a) => {
+    if (typeFilter && a.type !== typeFilter) return false
+    if (!term) return true
+    return [a.name, a.asset_tag, a.brand, a.model, a.serial_number, a.phone_line, a.notes]
+      .filter(Boolean)
+      .some((field: string) => field.toLowerCase().includes(term))
+  })
 
   return (
     <div className="p-6 space-y-5 max-w-6xl">
@@ -56,22 +62,28 @@ export default async function AssetsPage({
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Inventário</h1>
           <p className="text-[13px] text-zinc-500 mt-0.5">{assets?.length ?? 0} ativos</p>
         </div>
-        <Link
-          href="/assets/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-zinc-950 hover:bg-zinc-300 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Novo Ativo
-        </Link>
+        <div className="flex items-center gap-3">
+          <ListSearch placeholder="Buscar por nome, tag, série, linha..." />
+          <Link
+            href="/assets/new"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-zinc-950 hover:bg-zinc-300 transition-colors whitespace-nowrap"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo Ativo
+          </Link>
+        </div>
       </div>
 
       <div className="flex items-center gap-1 border-b border-zinc-800/80 -mb-1 overflow-x-auto">
         {tabs.map((tab) => {
           const active = (typeFilter ?? '') === tab.key
+          const params = new URLSearchParams()
+          if (tab.key) params.set('type', tab.key)
+          if (q) params.set('q', q)
           return (
             <Link
               key={tab.key}
-              href={tab.key ? `/assets?type=${tab.key}` : '/assets'}
+              href={`/assets${params.size ? `?${params}` : ''}`}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border-b-2 -mb-px whitespace-nowrap transition-colors',
                 active

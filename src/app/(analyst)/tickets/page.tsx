@@ -9,12 +9,13 @@ import {
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
   formatDate
 } from '@/lib/utils'
+import { TicketsFilters } from '@/components/analyst/tickets-filters'
 import type { Ticket, TicketArea } from '@/lib/types'
 
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; type?: string; q?: string }>
+  searchParams: Promise<{ status?: string; priority?: string; type?: string; area?: string; q?: string }>
 }) {
   const supabase = await createClient()
   const params = await searchParams
@@ -27,7 +28,11 @@ export default async function TicketsPage({
   if (params.status) query = query.eq('status', params.status)
   if (params.priority) query = query.eq('priority', params.priority)
   if (params.type) query = query.eq('type', params.type)
-  if (params.q) query = query.ilike('title', `%${params.q}%`)
+  if (params.area) query = query.eq('area', params.area)
+  if (params.q) {
+    const term = `%${params.q}%`
+    query = query.or(`title.ilike.${term},ticket_number.ilike.${term},description.ilike.${term}`)
+  }
 
   const { data: tickets } = await query
 
@@ -42,6 +47,8 @@ export default async function TicketsPage({
         <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Chamados</h1>
         <p className="text-[13px] text-zinc-500 mt-0.5">{tickets?.length ?? 0} chamados encontrados</p>
       </div>
+
+      <TicketsFilters />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">

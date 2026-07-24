@@ -1,12 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Monitor, Ticket } from 'lucide-react'
+import { ListSearch } from '@/components/ui/list-search'
+import { Monitor, Ticket, Plus } from 'lucide-react'
+import Link from 'next/link'
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   const supabase = await createClient()
+  const { q } = await searchParams
 
-  const { data: users } = await supabase
+  const { data: allUsers } = await supabase
     .from('profiles')
     .select('*')
     .eq('role', 'collaborator')
@@ -32,11 +39,32 @@ export default async function UsersPage() {
     ticketCountMap.set(t.requester_id, (ticketCountMap.get(t.requester_id) ?? 0) + 1)
   })
 
+  const term = q?.trim().toLowerCase()
+  const users = term
+    ? allUsers?.filter((u) =>
+        [u.full_name, u.email, u.department, u.job_title]
+          .filter(Boolean)
+          .some((field: string) => field.toLowerCase().includes(term))
+      )
+    : allUsers
+
   return (
     <div className="p-6 space-y-5 max-w-5xl">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Colaboradores</h1>
-        <p className="text-[13px] text-zinc-500 mt-0.5">{users?.length ?? 0} colaboradores cadastrados</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Colaboradores</h1>
+          <p className="text-[13px] text-zinc-500 mt-0.5">{users?.length ?? 0} colaboradores</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ListSearch placeholder="Buscar por nome, e-mail, cargo..." />
+          <Link
+            href="/users/new"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-zinc-950 hover:bg-zinc-300 transition-colors whitespace-nowrap"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo Colaborador
+          </Link>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -46,6 +74,7 @@ export default async function UsersPage() {
               <tr className="border-b border-zinc-800 bg-zinc-900/80">
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Nome</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">E-mail</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Cargo</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Departamento</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Equipamentos</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Chamados abertos</th>
@@ -61,6 +90,9 @@ export default async function UsersPage() {
                       <p className="font-medium text-zinc-200">{user.full_name}</p>
                     </td>
                     <td className="px-4 py-3 text-zinc-400">{user.email}</td>
+                    <td className="px-4 py-3 text-zinc-400">
+                      {user.job_title ?? <span className="text-zinc-600">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-zinc-400">
                       {user.department ?? <span className="text-zinc-600">—</span>}
                     </td>
@@ -85,8 +117,8 @@ export default async function UsersPage() {
               })}
               {(!users || users.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-600">
-                    Nenhum colaborador cadastrado.
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-600">
+                    {term ? `Nenhum colaborador encontrado para "${q}".` : 'Nenhum colaborador cadastrado.'}
                   </td>
                 </tr>
               )}

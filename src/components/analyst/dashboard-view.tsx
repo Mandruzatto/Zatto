@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Ticket as TicketIcon,
   Monitor,
@@ -62,6 +63,8 @@ const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
 }
 
 function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; total: number }) {
+  const router = useRouter()
+  const [hovered, setHovered] = useState<TicketStatus | null>(null)
   const radius = 15.915494 // circumference = 100
   let cumulative = 0
 
@@ -84,32 +87,55 @@ function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; t
                 r={radius}
                 fill="none"
                 stroke={TICKET_STATUS_HEX[status]}
-                strokeWidth="5"
+                strokeWidth={hovered === status ? 6.5 : 5}
                 strokeDasharray={`${pct} ${100 - pct}`}
                 strokeDashoffset={dashoffset}
-                className="transition-all duration-500"
-              />
+                className="transition-all duration-300 cursor-pointer"
+                style={{ opacity: hovered && hovered !== status ? 0.35 : 1 }}
+                onMouseEnter={() => setHovered(status)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => router.push(`/tickets?status=${status}`)}
+              >
+                <title>{`${TICKET_STATUS_LABELS[status]}: ${count}`}</title>
+              </circle>
             )
           })}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold text-zinc-100 tabular-nums">{total}</span>
-          <span className="text-[11px] text-zinc-600">tickets</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          {hovered ? (
+            <>
+              <span className="text-2xl font-semibold text-zinc-100 tabular-nums">{counts[hovered]}</span>
+              <span className="text-[11px] text-zinc-500 text-center px-4 leading-tight">
+                {TICKET_STATUS_LABELS[hovered]}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-2xl font-semibold text-zinc-100 tabular-nums">{total}</span>
+              <span className="text-[11px] text-zinc-600">tickets</span>
+            </>
+          )}
         </div>
       </div>
-      <div className="space-y-2 min-w-0">
+      <div className="space-y-1 min-w-0">
         {(Object.keys(counts) as TicketStatus[]).map((status) => {
           const count = counts[status]
           const pct = total > 0 ? Math.round((count / total) * 100) : 0
           return (
-            <div key={status} className="flex items-center gap-2">
+            <Link
+              key={status}
+              href={`/tickets?status=${status}`}
+              className="flex items-center gap-2 rounded-md px-2 py-1 -mx-2 hover:bg-zinc-900 transition-colors"
+              onMouseEnter={() => setHovered(status)}
+              onMouseLeave={() => setHovered(null)}
+            >
               <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: TICKET_STATUS_HEX[status] }} />
               <span className="text-[13px] text-zinc-400">{TICKET_STATUS_LABELS[status]}</span>
               <span className="text-[13px] font-medium text-zinc-200 tabular-nums ml-auto pl-4">
                 {count}
                 <span className="text-zinc-600 font-normal ml-1.5">({pct}%)</span>
               </span>
-            </div>
+            </Link>
           )
         })}
       </div>
@@ -242,23 +268,29 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800/60">
                   {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) =>
                     data.statusCounts[status] > 0 ? (
-                      <div
+                      <Link
                         key={status}
-                        className={TICKET_STATUS_BAR_COLORS[status]}
+                        href={`/tickets?status=${status}`}
+                        title={`${TICKET_STATUS_LABELS[status]}: ${data.statusCounts[status]}`}
+                        className={cn(TICKET_STATUS_BAR_COLORS[status], 'hover:opacity-75 transition-opacity')}
                         style={{ width: `${(data.statusCounts[status] / totalTickets) * 100}%` }}
                       />
                     ) : null
                   )}
                 </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+                <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3.5">
                   {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) => (
-                    <div key={status} className="flex items-center gap-1.5">
+                    <Link
+                      key={status}
+                      href={`/tickets?status=${status}`}
+                      className="flex items-center gap-1.5 rounded-md px-2 py-1 -mx-0.5 hover:bg-zinc-900 transition-colors"
+                    >
                       <span className={cn('h-2 w-2 rounded-full', TICKET_STATUS_BAR_COLORS[status])} />
                       <span className="text-xs text-zinc-400">{TICKET_STATUS_LABELS[status]}</span>
                       <span className="text-xs font-medium text-zinc-200 tabular-nums">
                         {data.statusCounts[status]}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </>
