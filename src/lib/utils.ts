@@ -61,6 +61,7 @@ export const WARRANTY_STATUS_COLORS: Record<WarrantyStatus, string> = {
 
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   open: 'Aberto',
+  awaiting_approval: 'Aguardando Aprovação',
   in_progress: 'Em Atendimento',
   pending: 'Pendente',
   scheduled: 'Agendado',
@@ -70,6 +71,7 @@ export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
 
 export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
   open: 'bg-blue-500/10 text-blue-400',
+  awaiting_approval: 'bg-cyan-500/10 text-cyan-400',
   in_progress: 'bg-amber-500/10 text-amber-400',
   pending: 'bg-orange-500/10 text-orange-400',
   scheduled: 'bg-violet-500/10 text-violet-400',
@@ -80,6 +82,7 @@ export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
 // Solid colors for progress bars / charts
 export const TICKET_STATUS_BAR_COLORS: Record<TicketStatus, string> = {
   open: 'bg-blue-500',
+  awaiting_approval: 'bg-cyan-500',
   in_progress: 'bg-amber-500',
   pending: 'bg-orange-500',
   scheduled: 'bg-violet-500',
@@ -90,6 +93,7 @@ export const TICKET_STATUS_BAR_COLORS: Record<TicketStatus, string> = {
 // Hex colors for SVG charts
 export const TICKET_STATUS_HEX: Record<TicketStatus, string> = {
   open: '#3b82f6',
+  awaiting_approval: '#06b6d4',
   in_progress: '#f59e0b',
   pending: '#f97316',
   scheduled: '#8b5cf6',
@@ -157,4 +161,15 @@ export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   printer: 'Impressora',
   tablet: 'Tablet',
   other: 'Outro',
+}
+
+export function getSlaState(dueAt?: string | null, completedAt?: string | null) {
+  if (!dueAt) return { label: 'Sem SLA', className: 'bg-zinc-500/10 text-zinc-500' }
+  const due = new Date(dueAt).getTime()
+  const reference = completedAt ? new Date(completedAt).getTime() : Date.now()
+  const remaining = due - reference
+  if (remaining < 0) return { label: 'SLA vencido', className: 'bg-red-500/10 text-red-400' }
+  const hours = Math.ceil(remaining / 3_600_000)
+  if (hours <= 4) return { label: `${hours}h restantes`, className: 'bg-amber-500/10 text-amber-400' }
+  return { label: `${hours}h restantes`, className: 'bg-emerald-500/10 text-emerald-400' }
 }

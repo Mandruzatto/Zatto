@@ -6,6 +6,8 @@ import {
   Ticket,
   PlusCircle,
   Monitor,
+  Home,
+  CheckSquare,
   LogOut,
   Zap,
 } from 'lucide-react'
@@ -13,12 +15,13 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
+  { href: '/portal', label: 'Início', icon: Home },
   { href: '/new-ticket', label: 'Abrir Chamado', icon: PlusCircle },
   { href: '/my-tickets', label: 'Meus Chamados', icon: Ticket },
   { href: '/my-assets', label: 'Meus Equipamentos', icon: Monitor },
 ]
 
-export function CollaboratorSidebar() {
+export function CollaboratorSidebar({ canApprove = false }: { canApprove?: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -41,7 +44,7 @@ export function CollaboratorSidebar() {
       </div>
 
       <nav className="flex-1 px-2.5 pt-2 space-y-0.5">
-        {navItems.map((item) => {
+        {[...navItems, ...(canApprove ? [{ href: '/approvals', label: 'Aprovações', icon: CheckSquare }] : [])].map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (

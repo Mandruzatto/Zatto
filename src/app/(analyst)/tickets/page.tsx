@@ -7,7 +7,7 @@ import {
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
   TICKET_TYPE_COLORS, TICKET_TYPE_LABELS,
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
-  formatDate
+  formatDate, getSlaState
 } from '@/lib/utils'
 import { TicketsFilters } from '@/components/analyst/tickets-filters'
 import type { Ticket, TicketArea } from '@/lib/types'
@@ -15,7 +15,7 @@ import type { Ticket, TicketArea } from '@/lib/types'
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; type?: string; area?: string; q?: string }>
+  searchParams: Promise<{ status?: string; priority?: string; type?: string; area?: string; sla?: string; q?: string }>
 }) {
   const supabase = await createClient()
   const params = await searchParams
@@ -29,6 +29,13 @@ export default async function TicketsPage({
   if (params.priority) query = query.eq('priority', params.priority)
   if (params.type) query = query.eq('type', params.type)
   if (params.area) query = query.eq('area', params.area)
+  if (params.sla === 'breached') query = query.lt('resolution_due_at', new Date().toISOString()).not('status', 'in', '("resolved","closed")')
+  if (params.sla === 'risk') {
+    // SLA filters intentionally use request-time clock.
+    // eslint-disable-next-line react-hooks/purity
+    const soon = new Date(Date.now() + 4 * 3_600_000).toISOString()
+    query = query.gte('resolution_due_at', new Date().toISOString()).lte('resolution_due_at', soon).not('status', 'in', '("resolved","closed")')
+  }
   if (params.q) {
     const term = `%${params.q}%`
     query = query.or(`title.ilike.${term},ticket_number.ilike.${term},description.ilike.${term}`)
@@ -61,6 +68,7 @@ export default async function TicketsPage({
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Área</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Prioridade</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">SLA</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Agente</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Criado em</th>
               </tr>
@@ -104,6 +112,12 @@ export default async function TicketsPage({
                       {TICKET_STATUS_LABELS[ticket.status]}
                     </Badge>
                   </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const sla = getSlaState(ticket.resolution_due_at, ticket.resolved_at)
+                      return <Badge className={sla.className}>{sla.label}</Badge>
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-zinc-400">
                     {ticket.assignee?.full_name ?? <span className="text-zinc-600 text-xs">Não atribuído</span>}
                   </td>
@@ -114,7 +128,7 @@ export default async function TicketsPage({
               ))}
               {(!tickets || tickets.length === 0) && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-zinc-600">
+                  <td colSpan={9} className="px-4 py-12 text-center text-zinc-600">
                     Nenhum chamado encontrado.
                   </td>
                 </tr>

@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  if (!user && !pathname.startsWith('/login') && pathname !== '/') {
+  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth/callback') && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const redirectPath = profile?.role === 'analyst' ? '/dashboard' : '/my-tickets'
+    const redirectPath = profile?.role === 'analyst' ? '/dashboard' : '/portal'
     return NextResponse.redirect(new URL(redirectPath, request.url))
   }
 

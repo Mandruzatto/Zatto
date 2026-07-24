@@ -28,7 +28,7 @@ export default async function UserDetailPage({
 
   if (!profile) notFound()
 
-  const [{ data: assignments }, { data: tickets }] = await Promise.all([
+  const [{ data: assignments }, { data: tickets }, { data: managers }] = await Promise.all([
     supabase
       .from('asset_assignments')
       .select('id, asset:assets(*)')
@@ -40,6 +40,10 @@ export default async function UserDetailPage({
       .eq('requester_id', id)
       .order('created_at', { ascending: false })
       .limit(8),
+    supabase
+      .from('profiles')
+      .select('id, full_name')
+      .order('full_name'),
   ])
 
   const heldAssets = (assignments ?? []).map((a) => {
@@ -85,7 +89,7 @@ export default async function UserDetailPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 space-y-5">
-          <UserEdit profile={profile as unknown as Profile} />
+          <UserEdit profile={profile as unknown as Profile} managers={managers ?? []} />
 
           <Card>
             <CardHeader>

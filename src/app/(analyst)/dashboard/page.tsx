@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { DashboardView, DashboardData } from '@/components/analyst/dashboard-view'
-import type { Ticket, TicketStatus, Asset } from '@/lib/types'
+import type { TicketStatus, Asset } from '@/lib/types'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     { data: warrantyAssets },
     { data: activeTicketRows },
   ] = await Promise.all([
-    supabase.from('tickets').select('status'),
+    supabase.from('tickets').select('status, resolution_due_at'),
     supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'in_use'),
     supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'stock'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'collaborator'),
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       .from('tickets')
       .select('*, requester:profiles!requester_id(full_name)')
       .eq('priority', 'critical')
-      .in('status', ['open', 'in_progress', 'pending', 'scheduled'])
+      .in('status', ['open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled'])
       .order('created_at', { ascending: false })
       .limit(4),
     supabase
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
     supabase
       .from('tickets')
       .select('id, ticket_number, title, status, requester_id, requester:profiles!requester_id(full_name)')
-      .in('status', ['open', 'in_progress', 'pending', 'scheduled']),
+      .in('status', ['open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled']),
   ])
 
   // Tickets ativos cuja última mensagem pública na conversa foi do colaborador (solicitante)
@@ -76,6 +76,7 @@ export default async function DashboardPage() {
 
   const statusCounts: Record<TicketStatus, number> = {
     open: 0,
+    awaiting_approval: 0,
     in_progress: 0,
     pending: 0,
     scheduled: 0,
@@ -85,6 +86,17 @@ export default async function DashboardPage() {
   statusRows?.forEach((r) => {
     statusCounts[r.status as TicketStatus] += 1
   })
+  // SLA indicators intentionally use request-time clock.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
+  const slaBreached = statusRows?.filter((r) =>
+    r.resolution_due_at && !['resolved', 'closed'].includes(r.status) && new Date(r.resolution_due_at).getTime() < now
+  ).length ?? 0
+  const slaAtRisk = statusRows?.filter((r) => {
+    if (!r.resolution_due_at || ['resolved', 'closed'].includes(r.status)) return false
+    const diff = new Date(r.resolution_due_at).getTime() - now
+    return diff >= 0 && diff <= 4 * 3_600_000
+  }).length ?? 0
 
   const data: DashboardData = {
     statusCounts,
@@ -95,6 +107,8 @@ export default async function DashboardPage() {
     criticalTickets: (criticalTickets ?? []) as unknown as DashboardData['criticalTickets'],
     warrantyAssets: (warrantyAssets ?? []) as unknown as Asset[],
     awaitingReply,
+    slaBreached,
+    slaAtRisk,
   }
 
   return <DashboardView data={data} />

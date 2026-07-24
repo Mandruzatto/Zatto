@@ -35,6 +35,12 @@ export default async function CollaboratorTicketDetailPage({
     .eq('is_internal', false)
     .order('created_at', { ascending: true })
 
+  const { data: approval } = await supabase
+    .from('ticket_approvals')
+    .select('*, approver:profiles!approver_id(full_name)')
+    .eq('ticket_id', id)
+    .maybeSingle()
+
   type CommentRow = {
     id: string
     content: string
@@ -98,6 +104,24 @@ export default async function CollaboratorTicketDetailPage({
           <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.description}</p>
         </CardContent>
       </Card>
+
+      {approval && (
+        <Card className="border-cyan-500/20">
+          <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-[13px] text-zinc-300">
+              {approval.decision === 'approved'
+                ? 'Solicitação aprovada'
+                : approval.decision === 'rejected'
+                  ? 'Solicitação rejeitada'
+                  : approval.approver
+                    ? `Aguardando decisão de ${(approval.approver as unknown as { full_name: string }).full_name}`
+                    : 'Aguardando definição de um aprovador'}
+            </p>
+            {approval.comment && <p className="mt-2 text-xs text-zinc-500">Comentário: {approval.comment}</p>}
+          </CardContent>
+        </Card>
+      )}
 
       {ticket.status === 'pending' && ticket.pending_reason && (
         <Card className="border-orange-500/20">

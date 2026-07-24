@@ -12,9 +12,15 @@ export default async function CollaboratorLayout({
 
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('can_approve')
+    .eq('id', user.id)
+    .single()
+
   return (
     <div className="flex h-screen bg-zinc-950">
-      <CollaboratorSidebar />
+      <CollaboratorSidebar canApprove={profile?.can_approve ?? false} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

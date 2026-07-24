@@ -16,6 +16,7 @@ const FILTERS: { key: string; placeholder: string; labels: Record<string, string
   { key: 'priority', placeholder: 'Prioridade', labels: TICKET_PRIORITY_LABELS },
   { key: 'type', placeholder: 'Tipo', labels: TICKET_TYPE_LABELS },
   { key: 'area', placeholder: 'Área', labels: TICKET_AREA_LABELS },
+  { key: 'sla', placeholder: 'SLA', labels: { breached: 'Vencido', risk: 'Em risco (4h)' } },
 ]
 
 export function TicketsFilters() {

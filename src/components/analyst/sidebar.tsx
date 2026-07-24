@@ -7,6 +7,7 @@ import {
   Ticket,
   Monitor,
   Users,
+  Settings,
   LogOut,
   Zap,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/tickets', label: 'Chamados', icon: Ticket },
   { href: '/assets', label: 'Inventário', icon: Monitor },
   { href: '/users', label: 'Colaboradores', icon: Users },
+  { href: '/settings', label: 'Configurações', icon: Settings },
 ]
 
 export function AnalystSidebar() {

@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [ssoEmail, setSsoEmail] = useState('')
+  const [ssoLoading, setSsoLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -34,8 +36,26 @@ export default function LoginPage() {
       .eq('id', data.user.id)
       .single()
 
-    router.push(profile?.role === 'analyst' ? '/dashboard' : '/my-tickets')
+    router.push(profile?.role === 'analyst' ? '/dashboard' : '/portal')
     router.refresh()
+  }
+
+  async function handleSso() {
+    const domain = ssoEmail.split('@')[1]?.trim()
+    if (!domain) {
+      setError('Informe seu e-mail corporativo para continuar com SSO.')
+      return
+    }
+    setError('')
+    setSsoLoading(true)
+    const { error: ssoError } = await supabase.auth.signInWithSSO({
+      domain,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (ssoError) {
+      setError('SSO ainda não está configurado para este domínio.')
+      setSsoLoading(false)
+    }
   }
 
   return (
@@ -77,6 +97,25 @@ export default function LoginPage() {
             Entrar
           </Button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-zinc-800" />
+          <span className="text-[11px] uppercase tracking-wider text-zinc-700">login corporativo</span>
+          <div className="h-px flex-1 bg-zinc-800" />
+        </div>
+        <div className="space-y-3">
+          <Input
+            label="E-mail corporativo"
+            type="email"
+            placeholder="voce@empresa.com"
+            value={ssoEmail}
+            onChange={(e) => setSsoEmail(e.target.value)}
+          />
+          <Button type="button" variant="secondary" className="w-full" loading={ssoLoading} onClick={handleSso}>
+            Entrar com SSO
+          </Button>
+          <p className="text-center text-[11px] text-zinc-700">Disponível após configuração do provedor SAML.</p>
+        </div>
       </div>
     </div>
   )

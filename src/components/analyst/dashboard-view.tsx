@@ -10,7 +10,6 @@ import {
   AlertCircle,
   ShieldAlert,
   Settings2,
-  Package,
   X,
   MessageSquare,
 } from 'lucide-react'
@@ -47,6 +46,8 @@ export interface DashboardData {
     requester_name: string
     last_comment_at: string
   }[]
+  slaBreached: number
+  slaAtRisk: number
 }
 
 type WidgetId = 'stats' | 'progress' | 'pie' | 'awaiting' | 'warranty' | 'recent' | 'critical'
@@ -162,6 +163,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
+      // Restore the user's persisted widget layout after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setVisibility({ ...DEFAULT_VISIBILITY, ...JSON.parse(stored) })
     } catch {}
     setHydrated(true)
@@ -177,6 +180,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   const activeTickets =
     data.statusCounts.open +
+    data.statusCounts.awaiting_approval +
     data.statusCounts.in_progress +
     data.statusCounts.pending +
     data.statusCounts.scheduled
@@ -189,8 +193,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   const stats = [
     { label: 'Chamados ativos', value: activeTickets, icon: TicketIcon, href: '/tickets' },
+    { label: 'SLA vencido', value: data.slaBreached, icon: AlertCircle, href: '/tickets?sla=breached' },
+    { label: 'SLA em risco', value: data.slaAtRisk, icon: ShieldAlert, href: '/tickets?sla=risk' },
     { label: 'Ativos em uso', value: data.assetsInUse, icon: Monitor, href: '/assets' },
-    { label: 'Em estoque', value: data.assetsStock, icon: Package, href: '/assets' },
     { label: 'Colaboradores', value: data.totalUsers, icon: Users, href: '/users' },
   ]
 
@@ -247,7 +252,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       )}
 
       {visibility.stats && (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (

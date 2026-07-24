@@ -13,5 +13,5 @@ export default async function HomePage() {
     .eq('id', user.id)
     .single()
 
-  redirect(profile?.role === 'analyst' ? '/dashboard' : '/my-tickets')
+  redirect(profile?.role === 'analyst' ? '/dashboard' : '/portal')
 }

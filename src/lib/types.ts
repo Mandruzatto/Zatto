@@ -1,6 +1,6 @@
 export type UserRole = 'analyst' | 'collaborator'
 
-export type TicketStatus = 'open' | 'in_progress' | 'pending' | 'scheduled' | 'resolved' | 'closed'
+export type TicketStatus = 'open' | 'awaiting_approval' | 'in_progress' | 'pending' | 'scheduled' | 'resolved' | 'closed'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
 export type TicketType = 'incident' | 'request'
 export type TicketArea = 'systems' | 'infrastructure'
@@ -9,6 +9,58 @@ export type AssetStatus = 'in_use' | 'stock' | 'returned' | 'maintenance' | 'dis
 export type AssetType = 'laptop' | 'desktop' | 'monitor' | 'phone' | 'printer' | 'tablet' | 'other'
 
 export type WarrantyStatus = 'none' | 'active' | 'expiring' | 'expired'
+export type ApprovalStatus = 'not_required' | 'pending_assignment' | 'pending' | 'approved' | 'rejected' | 'cancelled'
+export type ApprovalDecision = 'pending' | 'approved' | 'rejected' | 'cancelled'
+export type KnowledgeStatus = 'draft' | 'published' | 'archived'
+
+export interface CatalogField {
+  key: string
+  label: string
+  type: 'text' | 'textarea' | 'select'
+  required?: boolean
+  placeholder?: string
+  options?: string[]
+}
+
+export interface ServiceCatalogItem {
+  id: string
+  slug: string
+  title: string
+  description: string
+  instructions?: string | null
+  keywords: string[]
+  area?: TicketArea | null
+  default_priority: TicketPriority
+  requires_approval: boolean
+  form_schema: CatalogField[]
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface KnowledgeCategory {
+  id: string
+  name: string
+  slug: string
+  description?: string | null
+}
+
+export interface KnowledgeArticle {
+  id: string
+  category_id?: string | null
+  author_id?: string | null
+  title: string
+  slug: string
+  summary: string
+  content: string
+  keywords: string[]
+  status: KnowledgeStatus
+  published_at?: string | null
+  view_count: number
+  helpful_count: number
+  not_helpful_count: number
+  category?: KnowledgeCategory | null
+}
 
 export interface Profile {
   id: string
@@ -17,6 +69,8 @@ export interface Profile {
   role: UserRole
   department?: string
   job_title?: string | null
+  manager_id?: string | null
+  can_approve?: boolean
   avatar_url?: string
   created_at: string
   updated_at: string
@@ -33,6 +87,13 @@ export interface Ticket {
   area?: TicketArea | null
   resolution?: string | null
   pending_reason?: string | null
+  catalog_item_id?: string | null
+  form_responses?: Record<string, string>
+  approval_status?: ApprovalStatus
+  sla_policy_id?: string | null
+  first_response_due_at?: string | null
+  resolution_due_at?: string | null
+  first_responded_at?: string | null
   requester_id: string
   assignee_id?: string
   created_at: string
@@ -41,6 +102,19 @@ export interface Ticket {
   requester?: Profile
   assignee?: Profile
   assets?: Asset[]
+}
+
+export interface TicketApproval {
+  id: string
+  ticket_id: string
+  approver_id?: string | null
+  assigned_by?: string | null
+  decision: ApprovalDecision
+  comment?: string | null
+  requested_at: string
+  decided_at?: string | null
+  approver?: Profile | null
+  ticket?: Ticket
 }
 
 export interface Asset {

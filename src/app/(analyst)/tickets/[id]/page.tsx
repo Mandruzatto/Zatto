@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TicketManagement, CommentForm } from '@/components/analyst/ticket-management'
+import { TicketManagement, CommentForm, ApprovalManagement } from '@/components/analyst/ticket-management'
 import { TicketAssetsManager } from '@/components/analyst/ticket-assets'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
@@ -11,11 +11,11 @@ import {
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
   ASSET_TYPE_LABELS, ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
   getWarrantyStatus, WARRANTY_STATUS_LABELS, WARRANTY_STATUS_COLORS,
-  formatDate
+  formatDate, getSlaState
 } from '@/lib/utils'
 import { Monitor, User, Calendar, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import type { Asset, Profile, Ticket, WarrantyStatus, TicketArea } from '@/lib/types'
+import type { Asset, Profile, Ticket, TicketApproval, WarrantyStatus, TicketArea } from '@/lib/types'
 
 export default async function TicketDetailPage({
   params,
@@ -44,6 +44,8 @@ export default async function TicketDetailPage({
     { data: requesterAssets },
     { data: comments },
     { data: analysts },
+    { data: approval },
+    { data: approvers },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -57,6 +59,8 @@ export default async function TicketDetailPage({
       .eq('ticket_id', id)
       .order('created_at', { ascending: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
+    supabase.from('ticket_approvals').select('*, approver:profiles!approver_id(*)').eq('ticket_id', id).maybeSingle(),
+    supabase.from('profiles').select('id, full_name').eq('can_approve', true).order('full_name'),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -200,6 +204,31 @@ export default async function TicketDetailPage({
             analysts={analysts ?? []}
             currentUserId={user!.id}
           />
+          {approval && (
+            <ApprovalManagement
+              approval={approval as unknown as TicketApproval}
+              approvers={approvers ?? []}
+              currentUserId={user!.id}
+            />
+          )}
+
+          {ticket.resolution_due_at && (
+            <Card>
+              <CardHeader><CardTitle>SLA</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {(() => {
+                  const sla = getSlaState(ticket.resolution_due_at, ticket.resolved_at)
+                  return <Badge className={sla.className}>{sla.label}</Badge>
+                })()}
+                <p className="text-xs text-zinc-600">Resolução até {formatDate(ticket.resolution_due_at)}</p>
+                {ticket.first_response_due_at && (
+                  <p className="text-xs text-zinc-600">
+                    Primeira resposta: {ticket.first_responded_at ? formatDate(ticket.first_responded_at) : `até ${formatDate(ticket.first_response_due_at)}`}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle>Informações</CardTitle></CardHeader>

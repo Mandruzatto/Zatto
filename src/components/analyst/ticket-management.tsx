@@ -17,6 +17,7 @@ import {
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, TicketPriority, TicketType, TicketArea } from '@/lib/types'
 import { Lock, MessageSquare, Trash2 } from 'lucide-react'
+import type { TicketApproval } from '@/lib/types'
 
 interface TicketManagementProps {
   ticket: Ticket
@@ -269,5 +270,58 @@ export function CommentForm({ ticketId }: { ticketId: string }) {
         </Button>
       </div>
     </form>
+  )
+}
+
+export function ApprovalManagement({
+  approval,
+  approvers,
+  currentUserId,
+}: {
+  approval: TicketApproval
+  approvers: { id: string; full_name: string }[]
+  currentUserId: string
+}) {
+  const router = useRouter()
+  const supabase = createClient()
+  const [approverId, setApproverId] = useState(approval.approver_id ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!approverId) return
+    setSaving(true)
+    const { error } = await supabase.from('ticket_approvals').update({
+      approver_id: approverId,
+      assigned_by: currentUserId,
+      decision: 'pending',
+      comment: null,
+      decided_at: null,
+      requested_at: new Date().toISOString(),
+    }).eq('id', approval.id)
+    setSaving(false)
+    if (error) return toast('Erro ao definir aprovador', 'error')
+    toast('Aprovador atualizado')
+    router.refresh()
+  }
+
+  return (
+    <Card className="border-cyan-500/20">
+      <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <Select
+          label="Aprovador"
+          options={approvers.map((profile) => ({ value: profile.id, label: profile.full_name }))}
+          placeholder="Selecionar aprovador..."
+          value={approverId}
+          onChange={(e) => setApproverId(e.target.value)}
+        />
+        <Button size="sm" className="w-full" loading={saving} disabled={!approverId || approverId === approval.approver_id} onClick={save}>
+          {approval.approver_id ? 'Alterar aprovador' : 'Definir aprovador'}
+        </Button>
+        <p className="text-xs text-zinc-600">
+          Status: {approval.decision === 'approved' ? 'Aprovado' : approval.decision === 'rejected' ? 'Rejeitado' : approval.approver_id ? 'Aguardando decisão' : 'Sem aprovador'}
+        </p>
+      </CardContent>
+    </Card>
   )
 }

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { ASSET_TYPE_LABELS } from '@/lib/utils'
@@ -14,7 +15,7 @@ import { Monitor, Search, Loader2, Plus, KeyRound, UserMinus } from 'lucide-reac
 
 // ---------- Edição de dados ----------
 
-export function UserEdit({ profile }: { profile: Profile }) {
+export function UserEdit({ profile, managers }: { profile: Profile; managers: { id: string; full_name: string }[] }) {
   const router = useRouter()
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
@@ -22,12 +23,16 @@ export function UserEdit({ profile }: { profile: Profile }) {
     full_name: profile.full_name,
     job_title: profile.job_title ?? '',
     department: profile.department ?? '',
+    manager_id: profile.manager_id ?? '',
+    can_approve: profile.can_approve ?? false,
   })
 
   const dirty =
     form.full_name !== profile.full_name ||
     form.job_title !== (profile.job_title ?? '') ||
-    form.department !== (profile.department ?? '')
+    form.department !== (profile.department ?? '') ||
+    form.manager_id !== (profile.manager_id ?? '') ||
+    form.can_approve !== (profile.can_approve ?? false)
 
   async function handleSave() {
     setSaving(true)
@@ -38,6 +43,8 @@ export function UserEdit({ profile }: { profile: Profile }) {
         full_name: form.full_name,
         job_title: form.job_title || null,
         department: form.department || null,
+        manager_id: form.manager_id || null,
+        can_approve: form.can_approve,
       })
       .eq('id', profile.id)
 
@@ -80,6 +87,17 @@ export function UserEdit({ profile }: { profile: Profile }) {
             onChange={(e) => setForm({ ...form, department: e.target.value })}
           />
         </div>
+        <Select
+          label="Gestor padrão"
+          options={managers.filter((manager) => manager.id !== profile.id).map((manager) => ({ value: manager.id, label: manager.full_name }))}
+          placeholder="Sem gestor definido"
+          value={form.manager_id}
+          onChange={(e) => setForm({ ...form, manager_id: e.target.value })}
+        />
+        <label className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-[13px] text-zinc-300">
+          <input type="checkbox" checked={form.can_approve} onChange={(e) => setForm({ ...form, can_approve: e.target.checked })} className="accent-zinc-100" />
+          Pode aprovar solicitações de colaboradores
+        </label>
         <Button
           onClick={handleSave}
           loading={saving}
