@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { TicketPriority, TicketStatus, AssetStatus, AssetType, TicketCategory, WarrantyStatus } from './types'
+import { TicketPriority, TicketStatus, TicketType, TicketArea, AssetStatus, AssetType, WarrantyStatus } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -62,15 +62,17 @@ export const WARRANTY_STATUS_COLORS: Record<WarrantyStatus, string> = {
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   open: 'Aberto',
   in_progress: 'Em Atendimento',
-  waiting: 'Aguardando',
+  pending_response: 'Pendente de Resposta',
+  scheduled: 'Agendado',
   resolved: 'Resolvido',
-  closed: 'Fechado',
+  closed: 'Encerrado',
 }
 
 export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
   open: 'bg-blue-500/10 text-blue-400',
   in_progress: 'bg-amber-500/10 text-amber-400',
-  waiting: 'bg-orange-500/10 text-orange-400',
+  pending_response: 'bg-orange-500/10 text-orange-400',
+  scheduled: 'bg-violet-500/10 text-violet-400',
   resolved: 'bg-emerald-500/10 text-emerald-400',
   closed: 'bg-zinc-500/10 text-zinc-400',
 }
@@ -79,9 +81,20 @@ export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
 export const TICKET_STATUS_BAR_COLORS: Record<TicketStatus, string> = {
   open: 'bg-blue-500',
   in_progress: 'bg-amber-500',
-  waiting: 'bg-orange-500',
+  pending_response: 'bg-orange-500',
+  scheduled: 'bg-violet-500',
   resolved: 'bg-emerald-500',
   closed: 'bg-zinc-600',
+}
+
+// Hex colors for SVG charts
+export const TICKET_STATUS_HEX: Record<TicketStatus, string> = {
+  open: '#3b82f6',
+  in_progress: '#f59e0b',
+  pending_response: '#f97316',
+  scheduled: '#8b5cf6',
+  resolved: '#10b981',
+  closed: '#52525b',
 }
 
 export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
@@ -98,12 +111,24 @@ export const TICKET_PRIORITY_COLORS: Record<TicketPriority, string> = {
   critical: 'bg-red-500/10 text-red-400',
 }
 
-export const TICKET_CATEGORY_LABELS: Record<TicketCategory, string> = {
-  hardware: 'Hardware',
-  software: 'Software',
-  network: 'Rede',
-  access: 'Acesso',
-  other: 'Outro',
+export const TICKET_TYPE_LABELS: Record<TicketType, string> = {
+  incident: 'Incidente',
+  request: 'Solicitação',
+}
+
+export const TICKET_TYPE_COLORS: Record<TicketType, string> = {
+  incident: 'bg-rose-500/10 text-rose-400',
+  request: 'bg-sky-500/10 text-sky-400',
+}
+
+export const TICKET_AREA_LABELS: Record<TicketArea, string> = {
+  systems: 'Sistemas',
+  infrastructure: 'Infraestrutura',
+}
+
+export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
+  systems: 'bg-indigo-500/10 text-indigo-400',
+  infrastructure: 'bg-teal-500/10 text-teal-400',
 }
 
 // ---------- Assets ----------

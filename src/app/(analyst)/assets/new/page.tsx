@@ -26,6 +26,7 @@ export default function NewAssetPage() {
     brand: '',
     model: '',
     serial_number: '',
+    phone_line: '',
     purchase_date: '',
     warranty_end_date: '',
     notes: '',
@@ -47,6 +48,7 @@ export default function NewAssetPage() {
       brand: form.brand || null,
       model: form.model || null,
       serial_number: form.serial_number || null,
+      phone_line: form.phone_line || null,
       purchase_date: form.purchase_date || null,
       warranty_end_date: form.warranty_end_date || null,
       notes: form.notes || null,
@@ -145,6 +147,14 @@ export default function NewAssetPage() {
                 hint="Deixe vazio se não houver garantia"
               />
             </div>
+
+            <Input
+              label="Linha / Chip"
+              placeholder="Ex: 11911249394"
+              value={form.phone_line}
+              onChange={(e) => setForm({ ...form, phone_line: e.target.value })}
+              hint="Número da linha vinculada ao equipamento (celulares, tablets com chip)"
+            />
 
             <Textarea
               label="Observações"

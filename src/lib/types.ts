@@ -1,8 +1,9 @@
 export type UserRole = 'analyst' | 'collaborator'
 
-export type TicketStatus = 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed'
+export type TicketStatus = 'open' | 'in_progress' | 'pending_response' | 'scheduled' | 'resolved' | 'closed'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
-export type TicketCategory = 'hardware' | 'software' | 'network' | 'access' | 'other'
+export type TicketType = 'incident' | 'request'
+export type TicketArea = 'systems' | 'infrastructure'
 
 export type AssetStatus = 'in_use' | 'stock' | 'returned' | 'maintenance' | 'disposed'
 export type AssetType = 'laptop' | 'desktop' | 'monitor' | 'phone' | 'printer' | 'tablet' | 'other'
@@ -27,7 +28,8 @@ export interface Ticket {
   description: string
   status: TicketStatus
   priority: TicketPriority
-  category: TicketCategory
+  type: TicketType
+  area?: TicketArea | null
   requester_id: string
   assignee_id?: string
   created_at: string
@@ -46,6 +48,7 @@ export interface Asset {
   brand?: string
   model?: string
   serial_number?: string
+  phone_line?: string | null
   status: AssetStatus
   purchase_date?: string
   warranty_end_date?: string

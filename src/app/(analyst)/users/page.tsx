@@ -20,7 +20,7 @@ export default async function UsersPage() {
   const { data: openTickets } = await supabase
     .from('tickets')
     .select('requester_id')
-    .in('status', ['open', 'in_progress', 'waiting'])
+    .in('status', ['open', 'in_progress', 'pending_response', 'scheduled'])
 
   const assetCountMap = new Map<string, number>()
   assignments?.forEach((a) => {

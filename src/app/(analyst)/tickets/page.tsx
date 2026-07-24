@@ -5,14 +5,16 @@ import Link from 'next/link'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
-  TICKET_CATEGORY_LABELS, formatDate
+  TICKET_TYPE_COLORS, TICKET_TYPE_LABELS,
+  TICKET_AREA_COLORS, TICKET_AREA_LABELS,
+  formatDate
 } from '@/lib/utils'
-import type { Ticket } from '@/lib/types'
+import type { Ticket, TicketArea } from '@/lib/types'
 
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; q?: string }>
+  searchParams: Promise<{ status?: string; priority?: string; type?: string; q?: string }>
 }) {
   const supabase = await createClient()
   const params = await searchParams
@@ -24,6 +26,7 @@ export default async function TicketsPage({
 
   if (params.status) query = query.eq('status', params.status)
   if (params.priority) query = query.eq('priority', params.priority)
+  if (params.type) query = query.eq('type', params.type)
   if (params.q) query = query.ilike('title', `%${params.q}%`)
 
   const { data: tickets } = await query
@@ -47,10 +50,11 @@ export default async function TicketsPage({
               <tr className="border-b border-zinc-800 bg-zinc-900/80">
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Chamado</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Solicitante</th>
-                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Categoria</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Tipo</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Área</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Prioridade</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Status</th>
-                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Atribuído a</th>
+                <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Agente</th>
                 <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Criado em</th>
               </tr>
             </thead>
@@ -69,8 +73,19 @@ export default async function TicketsPage({
                       <p className="text-xs text-zinc-600">{ticket.requester.department}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400">
-                    {TICKET_CATEGORY_LABELS[ticket.category]}
+                  <td className="px-4 py-3">
+                    <Badge className={TICKET_TYPE_COLORS[ticket.type]}>
+                      {TICKET_TYPE_LABELS[ticket.type]}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {ticket.area ? (
+                      <Badge className={TICKET_AREA_COLORS[ticket.area as TicketArea]}>
+                        {TICKET_AREA_LABELS[ticket.area as TicketArea]}
+                      </Badge>
+                    ) : (
+                      <span className="text-zinc-600 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={TICKET_PRIORITY_COLORS[ticket.priority]}>
@@ -92,7 +107,7 @@ export default async function TicketsPage({
               ))}
               {(!tickets || tickets.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-600">
+                  <td colSpan={8} className="px-4 py-12 text-center text-zinc-600">
                     Nenhum chamado encontrado.
                   </td>
                 </tr>

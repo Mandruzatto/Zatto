@@ -23,6 +23,7 @@ import {
   TICKET_STATUS_LABELS,
   TICKET_STATUS_COLORS,
   TICKET_STATUS_BAR_COLORS,
+  TICKET_STATUS_HEX,
   TICKET_PRIORITY_LABELS,
   TICKET_PRIORITY_COLORS,
 } from '@/lib/utils'
@@ -38,11 +39,12 @@ export interface DashboardData {
   warrantyAssets: Asset[]
 }
 
-type WidgetId = 'stats' | 'progress' | 'warranty' | 'recent' | 'critical'
+type WidgetId = 'stats' | 'progress' | 'pie' | 'warranty' | 'recent' | 'critical'
 
 const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats', label: 'Indicadores' },
   { id: 'progress', label: 'Andamento dos chamados' },
+  { id: 'pie', label: 'Gráfico de pizza' },
   { id: 'warranty', label: 'Alertas de garantia' },
   { id: 'recent', label: 'Chamados recentes' },
   { id: 'critical', label: 'Chamados críticos' },
@@ -53,9 +55,66 @@ const STORAGE_KEY = 'zatto:dashboard-widgets'
 const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   stats: true,
   progress: true,
+  pie: true,
   warranty: true,
   recent: true,
   critical: true,
+}
+
+function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; total: number }) {
+  const radius = 15.915494 // circumference = 100
+  let cumulative = 0
+
+  return (
+    <div className="flex items-center gap-8">
+      <div className="relative h-40 w-40 shrink-0">
+        <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90">
+          <circle cx="21" cy="21" r={radius} fill="none" stroke="#27272a" strokeWidth="5" />
+          {(Object.keys(counts) as TicketStatus[]).map((status) => {
+            const count = counts[status]
+            if (count === 0) return null
+            const pct = (count / total) * 100
+            const dashoffset = -cumulative
+            cumulative += pct
+            return (
+              <circle
+                key={status}
+                cx="21"
+                cy="21"
+                r={radius}
+                fill="none"
+                stroke={TICKET_STATUS_HEX[status]}
+                strokeWidth="5"
+                strokeDasharray={`${pct} ${100 - pct}`}
+                strokeDashoffset={dashoffset}
+                className="transition-all duration-500"
+              />
+            )
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-semibold text-zinc-100 tabular-nums">{total}</span>
+          <span className="text-[11px] text-zinc-600">tickets</span>
+        </div>
+      </div>
+      <div className="space-y-2 min-w-0">
+        {(Object.keys(counts) as TicketStatus[]).map((status) => {
+          const count = counts[status]
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0
+          return (
+            <div key={status} className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: TICKET_STATUS_HEX[status] }} />
+              <span className="text-[13px] text-zinc-400">{TICKET_STATUS_LABELS[status]}</span>
+              <span className="text-[13px] font-medium text-zinc-200 tabular-nums ml-auto pl-4">
+                {count}
+                <span className="text-zinc-600 font-normal ml-1.5">({pct}%)</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function DashboardView({ data }: { data: DashboardData }) {
@@ -80,7 +139,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
   }
 
   const activeTickets =
-    data.statusCounts.open + data.statusCounts.in_progress + data.statusCounts.waiting
+    data.statusCounts.open +
+    data.statusCounts.in_progress +
+    data.statusCounts.pending_response +
+    data.statusCounts.scheduled
   const totalTickets = Object.values(data.statusCounts).reduce((a, b) => a + b, 0)
 
   const expiringAssets = data.warrantyAssets.filter((a) => {
@@ -200,6 +262,21 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   ))}
                 </div>
               </>
+            ) : (
+              <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.pie && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição por status</CardTitle>
+          </CardHeader>
+          <CardContent className="py-5">
+            {totalTickets > 0 ? (
+              <DonutChart counts={data.statusCounts} total={totalTickets} />
             ) : (
               <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
             )}

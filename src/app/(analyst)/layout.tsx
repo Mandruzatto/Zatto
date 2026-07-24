@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AnalystSidebar } from '@/components/analyst/sidebar'
+import { GlobalSearch } from '@/components/analyst/global-search'
 
 export default async function AnalystLayout({
   children,
@@ -23,9 +24,14 @@ export default async function AnalystLayout({
   return (
     <div className="flex h-screen bg-zinc-950">
       <AnalystSidebar />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex items-center border-b border-zinc-800/80 px-6 py-2.5">
+          <GlobalSearch />
+        </header>
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
-  TICKET_CATEGORY_LABELS, formatDate
+  TICKET_TYPE_LABELS, formatDate
 } from '@/lib/utils'
 import { ArrowLeft, User, Calendar, Tag } from 'lucide-react'
 import Link from 'next/link'
@@ -68,9 +68,9 @@ export default async function CollaboratorTicketDetailPage({
         <div className="flex items-start gap-2.5">
           <Tag className="h-4 w-4 text-zinc-600 mt-0.5" />
           <div>
-            <p className="text-xs text-zinc-600">Categoria</p>
+            <p className="text-xs text-zinc-600">Tipo</p>
             <p className="text-[13px] font-medium text-zinc-200">
-              {TICKET_CATEGORY_LABELS[ticket.category as keyof typeof TICKET_CATEGORY_LABELS]}
+              {TICKET_TYPE_LABELS[ticket.type as keyof typeof TICKET_TYPE_LABELS]}
             </p>
           </div>
         </div>

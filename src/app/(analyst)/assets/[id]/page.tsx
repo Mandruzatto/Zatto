@@ -94,6 +94,14 @@ export default async function AssetDetailPage({
                   {asset.serial_number ?? '—'}
                 </p>
               </div>
+              {asset.phone_line && (
+                <div>
+                  <p className="text-xs text-zinc-600">Linha / Chip</p>
+                  <p className="text-[13px] font-medium text-zinc-200 mt-0.5 font-mono">
+                    {asset.phone_line}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-zinc-600">Data de aquisição</p>
                 <p className="text-[13px] font-medium text-zinc-200 mt-0.5">

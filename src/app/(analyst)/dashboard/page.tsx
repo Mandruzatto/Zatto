@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       .from('tickets')
       .select('*, requester:profiles!requester_id(full_name)')
       .eq('priority', 'critical')
-      .in('status', ['open', 'in_progress', 'waiting'])
+      .in('status', ['open', 'in_progress', 'pending_response', 'scheduled'])
       .order('created_at', { ascending: false })
       .limit(4),
     supabase
@@ -41,7 +41,8 @@ export default async function DashboardPage() {
   const statusCounts: Record<TicketStatus, number> = {
     open: 0,
     in_progress: 0,
-    waiting: 0,
+    pending_response: 0,
+    scheduled: 0,
     resolved: 0,
     closed: 0,
   }

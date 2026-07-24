@@ -6,13 +6,20 @@ import {
   ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
   ASSET_TYPE_LABELS, formatDateShort,
   getWarrantyStatus, WARRANTY_STATUS_LABELS, WARRANTY_STATUS_COLORS,
+  cn,
 } from '@/lib/utils'
 import { Plus } from 'lucide-react'
+import type { AssetType } from '@/lib/types'
 
-export default async function AssetsPage() {
+export default async function AssetsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
   const supabase = await createClient()
+  const { type: typeFilter } = await searchParams
 
-  const { data: assets } = await supabase
+  const { data: allAssets } = await supabase
     .from('assets')
     .select('*')
     .order('created_at', { ascending: false })
@@ -26,12 +33,28 @@ export default async function AssetsPage() {
     assignments?.map((a) => [a.asset_id, a.user as unknown as { full_name: string; department?: string }]) ?? []
   )
 
+  const typeCounts = new Map<string, number>()
+  allAssets?.forEach((a) => {
+    typeCounts.set(a.type, (typeCounts.get(a.type) ?? 0) + 1)
+  })
+
+  const tabs: { key: string; label: string; count: number }[] = [
+    { key: '', label: 'Todos', count: allAssets?.length ?? 0 },
+    ...(Object.entries(ASSET_TYPE_LABELS) as [AssetType, string][])
+      .filter(([key]) => (typeCounts.get(key) ?? 0) > 0)
+      .map(([key, label]) => ({ key, label, count: typeCounts.get(key) ?? 0 })),
+  ]
+
+  const assets = typeFilter
+    ? allAssets?.filter((a) => a.type === typeFilter)
+    : allAssets
+
   return (
     <div className="p-6 space-y-5 max-w-6xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Inventário</h1>
-          <p className="text-[13px] text-zinc-500 mt-0.5">{assets?.length ?? 0} ativos cadastrados</p>
+          <p className="text-[13px] text-zinc-500 mt-0.5">{assets?.length ?? 0} ativos</p>
         </div>
         <Link
           href="/assets/new"
@@ -40,6 +63,32 @@ export default async function AssetsPage() {
           <Plus className="h-3.5 w-3.5" />
           Novo Ativo
         </Link>
+      </div>
+
+      <div className="flex items-center gap-1 border-b border-zinc-800/80 -mb-1 overflow-x-auto">
+        {tabs.map((tab) => {
+          const active = (typeFilter ?? '') === tab.key
+          return (
+            <Link
+              key={tab.key}
+              href={tab.key ? `/assets?type=${tab.key}` : '/assets'}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border-b-2 -mb-px whitespace-nowrap transition-colors',
+                active
+                  ? 'border-zinc-100 text-zinc-100'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              {tab.label}
+              <span className={cn(
+                'rounded-full px-1.5 py-0.5 text-[11px] tabular-nums',
+                active ? 'bg-zinc-100 text-zinc-950' : 'bg-zinc-800/80 text-zinc-500'
+              )}>
+                {tab.count}
+              </span>
+            </Link>
+          )
+        })}
       </div>
 
       <Card className="overflow-hidden">
@@ -64,7 +113,10 @@ export default async function AssetsPage() {
                     <td className="px-4 py-3">
                       <Link href={`/assets/${asset.id}`} className="group">
                         <p className="font-medium text-zinc-200 group-hover:text-white">{asset.name}</p>
-                        <p className="text-xs text-zinc-600 mt-0.5 font-mono">{asset.asset_tag}</p>
+                        <p className="text-xs text-zinc-600 mt-0.5 font-mono">
+                          {asset.asset_tag}
+                          {asset.phone_line && ` · ${asset.phone_line}`}
+                        </p>
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-zinc-400">
@@ -99,7 +151,7 @@ export default async function AssetsPage() {
               {(!assets || assets.length === 0) && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-zinc-600">
-                    Nenhum ativo cadastrado.
+                    Nenhum ativo nesta categoria.
                   </td>
                 </tr>
               )}

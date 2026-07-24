@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { TICKET_PRIORITY_LABELS, TICKET_CATEGORY_LABELS } from '@/lib/utils'
-import type { TicketPriority, TicketCategory } from '@/lib/types'
-import { CheckCircle } from 'lucide-react'
+import { TICKET_PRIORITY_LABELS, cn } from '@/lib/utils'
+import type { TicketPriority, TicketType } from '@/lib/types'
+import { CheckCircle, AlertTriangle, FilePlus } from 'lucide-react'
 
 export default function NewTicketPage() {
   const router = useRouter()
@@ -22,11 +22,10 @@ export default function NewTicketPage() {
     title: '',
     description: '',
     priority: 'medium' as TicketPriority,
-    category: 'other' as TicketCategory,
+    type: 'incident' as TicketType,
   })
 
   const priorityOptions = Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => ({ value, label }))
-  const categoryOptions = Object.entries(TICKET_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,7 +40,7 @@ export default function NewTicketPage() {
         title: form.title,
         description: form.description,
         priority: form.priority,
-        category: form.category,
+        type: form.type,
         requester_id: user.id,
       })
       .select('ticket_number')
@@ -72,7 +71,7 @@ export default function NewTicketPage() {
               </Button>
               <Button onClick={() => {
                 setSuccess(false)
-                setForm({ title: '', description: '', priority: 'medium', category: 'other' })
+                setForm({ title: '', description: '', priority: 'medium', type: 'incident' })
               }}>
                 Abrir outro
               </Button>
@@ -93,32 +92,58 @@ export default function NewTicketPage() {
       <Card>
         <CardContent className="pt-5">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <p className="block text-[13px] font-medium text-zinc-400 mb-1.5">O que você precisa?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, type: 'incident' })}
+                  className={cn(
+                    'flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-colors',
+                    form.type === 'incident'
+                      ? 'border-rose-500/40 bg-rose-500/[0.06]'
+                      : 'border-zinc-800 hover:border-zinc-700'
+                  )}
+                >
+                  <AlertTriangle className={cn('h-4 w-4', form.type === 'incident' ? 'text-rose-400' : 'text-zinc-600')} />
+                  <span className="text-[13px] font-medium text-zinc-200">Incidente</span>
+                  <span className="text-xs text-zinc-500">Algo parou de funcionar ou está com problema</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, type: 'request' })}
+                  className={cn(
+                    'flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-colors',
+                    form.type === 'request'
+                      ? 'border-sky-500/40 bg-sky-500/[0.06]'
+                      : 'border-zinc-800 hover:border-zinc-700'
+                  )}
+                >
+                  <FilePlus className={cn('h-4 w-4', form.type === 'request' ? 'text-sky-400' : 'text-zinc-600')} />
+                  <span className="text-[13px] font-medium text-zinc-200">Solicitação</span>
+                  <span className="text-xs text-zinc-500">Preciso de um acesso, equipamento ou serviço</span>
+                </button>
+              </div>
+            </div>
+
             <Input
               label="Assunto"
-              placeholder="Ex: Notebook não liga"
+              placeholder={form.type === 'incident' ? 'Ex: Notebook não liga' : 'Ex: Acesso ao sistema financeiro'}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               required
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Categoria"
-                options={categoryOptions}
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as TicketCategory })}
-              />
-              <Select
-                label="Prioridade"
-                options={priorityOptions}
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
-              />
-            </div>
+            <Select
+              label="Prioridade"
+              options={priorityOptions}
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
+            />
 
             <Textarea
               label="Descrição"
-              placeholder="Descreva o problema com o máximo de detalhes..."
+              placeholder="Descreva com o máximo de detalhes..."
               rows={5}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
