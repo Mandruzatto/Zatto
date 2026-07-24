@@ -199,7 +199,9 @@ export default async function TicketDetailPage({
                 <User className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-zinc-600">Solicitante</p>
-                  <p className="text-[13px] font-medium text-zinc-200">{requester?.full_name}</p>
+                  <Link href={`/users/${ticket.requester_id}`} className="text-[13px] font-medium text-zinc-200 hover:text-white transition-colors">
+                    {requester?.full_name}
+                  </Link>
                   {requester?.department && (
                     <p className="text-xs text-zinc-600">{requester.department}</p>
                   )}

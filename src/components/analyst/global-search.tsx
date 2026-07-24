@@ -230,7 +230,7 @@ export function GlobalSearch() {
               {results.profiles.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => go('/users')}
+                  onClick={() => go(`/users/${p.id}`)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-zinc-900 transition-colors text-left"
                 >
                   <User className="h-4 w-4 text-zinc-600 shrink-0" />

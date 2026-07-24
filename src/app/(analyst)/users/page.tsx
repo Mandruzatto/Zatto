@@ -87,7 +87,9 @@ export default async function UsersPage({
                 return (
                   <tr key={user.id} className="hover:bg-zinc-900/60 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-zinc-200">{user.full_name}</p>
+                      <Link href={`/users/${user.id}`} className="group">
+                        <p className="font-medium text-zinc-200 group-hover:text-white">{user.full_name}</p>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-zinc-400">{user.email}</td>
                     <td className="px-4 py-3 text-zinc-400">
