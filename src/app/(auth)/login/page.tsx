@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { EXPIRED_FLAG_KEY } from '@/components/session-timeout'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,6 +17,16 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [ssoEmail, setSsoEmail] = useState('')
   const [ssoLoading, setSsoLoading] = useState(false)
+  const [expired, setExpired] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem(EXPIRED_FLAG_KEY)) return
+      sessionStorage.removeItem(EXPIRED_FLAG_KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExpired(true)
+    } catch {}
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -68,6 +79,12 @@ export default function LoginPage() {
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">zaTTo</h1>
           <p className="text-zinc-500 text-[13px] mt-1">Suporte & Inventário</p>
         </div>
+
+        {expired && (
+          <p className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-400">
+            Sua sessão expirou por inatividade. Entre novamente.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input

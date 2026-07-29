@@ -8,11 +8,13 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
+import { Input } from '@/components/ui/input'
 import {
   TICKET_STATUS_LABELS,
   TICKET_PRIORITY_LABELS,
   TICKET_TYPE_LABELS,
   TICKET_AREA_LABELS,
+  toDateTimeLocalValue,
   cn,
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, TicketPriority, TicketType, TicketArea } from '@/lib/types'
@@ -48,11 +50,13 @@ export function TicketManagement({
     resolution: ticket.resolution ?? '',
     pending_reason: ticket.pending_reason ?? '',
     approver_id: currentApproval?.approver_id ?? '',
+    scheduled_for: toDateTimeLocalValue(ticket.scheduled_for),
   })
 
   const needsResolution = form.status === 'resolved' || form.status === 'closed'
   const isPending = form.status === 'pending'
   const needsApprover = form.status === 'awaiting_approval'
+  const isScheduled = form.status === 'scheduled'
 
   const dirty =
     form.status !== ticket.status ||
@@ -62,15 +66,21 @@ export function TicketManagement({
     form.assignee_id !== (ticket.assignee_id ?? '') ||
     form.resolution !== (ticket.resolution ?? '') ||
     form.pending_reason !== (ticket.pending_reason ?? '') ||
-    (needsApprover && form.approver_id !== (currentApproval?.approver_id ?? ''))
+    (needsApprover && form.approver_id !== (currentApproval?.approver_id ?? '')) ||
+    (isScheduled && form.scheduled_for !== toDateTimeLocalValue(ticket.scheduled_for))
 
   const missingResolution = needsResolution && !form.resolution.trim()
   const missingPendingReason = isPending && !form.pending_reason.trim()
   const missingApprover = needsApprover && !form.approver_id
+  const missingSchedule = isScheduled && !form.scheduled_for
 
   async function handleSave() {
     if (missingApprover) {
       toast('Selecione o aprovador para salvar', 'error')
+      return
+    }
+    if (missingSchedule) {
+      toast('Informe a data do agendamento', 'error')
       return
     }
 
@@ -84,6 +94,7 @@ export function TicketManagement({
       assignee_id: form.assignee_id || null,
       resolution: needsResolution ? form.resolution.trim() || null : null,
       pending_reason: isPending ? form.pending_reason.trim() || null : null,
+      scheduled_for: isScheduled ? new Date(form.scheduled_for).toISOString() : null,
     }
 
     if (needsApprover) {
@@ -202,6 +213,15 @@ export function TicketManagement({
             hint="Obrigatório ao marcar como Pendente"
           />
         )}
+        {isScheduled && (
+          <Input
+            label="Agendado para"
+            type="datetime-local"
+            value={form.scheduled_for}
+            onChange={(e) => setForm({ ...form, scheduled_for: e.target.value })}
+            hint="Obrigatório ao marcar como Agendado"
+          />
+        )}
         {needsApprover && (
           <div className="space-y-1.5">
             <Select
@@ -238,7 +258,7 @@ export function TicketManagement({
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty || missingResolution || missingPendingReason || missingApprover}
+          disabled={!dirty || missingResolution || missingPendingReason || missingApprover || missingSchedule}
           className="w-full"
           size="sm"
         >

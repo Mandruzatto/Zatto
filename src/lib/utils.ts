@@ -163,6 +163,28 @@ export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   other: 'Outro',
 }
 
+export function toDateTimeLocalValue(iso?: string | null): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+export function getScheduleState(scheduledFor?: string | null) {
+  if (!scheduledFor) return { label: 'Sem data', className: 'bg-zinc-500/10 text-zinc-500' }
+  const target = new Date(scheduledFor)
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime()
+  const daysAhead = Math.round((targetDay - startOfToday) / 86_400_000)
+
+  if (target.getTime() < now.getTime()) return { label: 'Atrasado', className: 'bg-red-500/10 text-red-400' }
+  if (daysAhead === 0) return { label: 'Hoje', className: 'bg-amber-500/10 text-amber-400' }
+  if (daysAhead === 1) return { label: 'Amanhã', className: 'bg-violet-500/10 text-violet-400' }
+  return { label: `Em ${daysAhead} dias`, className: 'bg-zinc-500/10 text-zinc-400' }
+}
+
 export function getSlaState(dueAt?: string | null, completedAt?: string | null) {
   if (!dueAt) return { label: 'Sem SLA', className: 'bg-zinc-500/10 text-zinc-500' }
   const due = new Date(dueAt).getTime()

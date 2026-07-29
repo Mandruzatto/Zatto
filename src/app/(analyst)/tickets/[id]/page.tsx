@@ -11,7 +11,7 @@ import {
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
   ASSET_TYPE_LABELS, ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
   getWarrantyStatus, WARRANTY_STATUS_LABELS, WARRANTY_STATUS_COLORS,
-  formatDate, getSlaState
+  formatDate, getSlaState, getScheduleState
 } from '@/lib/utils'
 import { Monitor, User, Calendar, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -110,6 +110,17 @@ export default async function TicketDetailPage({
           )}
         </div>
         <h1 className="text-lg font-semibold tracking-tight text-zinc-100">{ticket.title}</h1>
+        <p className="mt-1 text-[13px] text-zinc-500">
+          Solicitante:{' '}
+          <Link
+            href={`/users/${ticket.requester_id}`}
+            className="font-medium text-zinc-300 hover:text-white transition-colors"
+          >
+            {requester?.full_name ?? 'não identificado'}
+          </Link>
+          {requester?.department && <span className="text-zinc-600"> · {requester.department}</span>}
+          {requester?.email && <span className="text-zinc-600"> · {requester.email}</span>}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -137,6 +148,18 @@ export default async function TicketDetailPage({
               <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.description}</p>
             </CardContent>
           </Card>
+
+          {ticket.status === 'scheduled' && ticket.scheduled_for && (
+            <Card className="border-violet-500/20">
+              <CardHeader><CardTitle>Agendamento</CardTitle></CardHeader>
+              <CardContent className="flex items-center gap-2.5">
+                <Badge className={getScheduleState(ticket.scheduled_for).className}>
+                  {getScheduleState(ticket.scheduled_for).label}
+                </Badge>
+                <p className="text-[13px] text-zinc-300">{formatDate(ticket.scheduled_for)}</p>
+              </CardContent>
+            </Card>
+          )}
 
           {ticket.status === 'pending' && ticket.pending_reason && (
             <Card className="border-orange-500/20">

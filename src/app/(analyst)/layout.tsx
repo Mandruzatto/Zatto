@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AnalystSidebar } from '@/components/analyst/sidebar'
 import { GlobalSearch } from '@/components/analyst/global-search'
+import { SessionTimeout } from '@/components/session-timeout'
 
 export default async function AnalystLayout({
   children,
@@ -23,6 +24,7 @@ export default async function AnalystLayout({
 
   return (
     <div className="flex h-screen bg-zinc-950">
+      <SessionTimeout />
       <AnalystSidebar
         user={{
           fullName: profile.full_name || user.email || 'Analista',

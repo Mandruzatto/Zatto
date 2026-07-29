@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { NavUser } from '@/components/nav-user'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -73,6 +74,7 @@ export function AnalystSidebar({
 
       <div className="border-t border-zinc-800/80 p-2.5">
         <NavUser fullName={user.fullName} email={user.email} roleLabel="Analista" />
+        <ThemeToggle />
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200 transition-colors"

@@ -87,6 +87,7 @@ export interface Ticket {
   area?: TicketArea | null
   resolution?: string | null
   pending_reason?: string | null
+  scheduled_for?: string | null
   catalog_item_id?: string | null
   form_responses?: Record<string, string>
   approval_status?: ApprovalStatus

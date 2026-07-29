@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollaboratorSidebar } from '@/components/collaborator/sidebar'
+import { SessionTimeout } from '@/components/session-timeout'
 
 export default async function CollaboratorLayout({
   children,
@@ -29,6 +30,7 @@ export default async function CollaboratorLayout({
 
   return (
     <div className="flex h-screen bg-zinc-950">
+      <SessionTimeout />
       <CollaboratorSidebar
         canApprove={canApprove}
         user={{

@@ -7,7 +7,7 @@ import {
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
   TICKET_TYPE_COLORS, TICKET_TYPE_LABELS,
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
-  formatDate, getSlaState
+  formatDate, formatDateShort, getSlaState, getScheduleState
 } from '@/lib/utils'
 import { TicketsFilters } from '@/components/analyst/tickets-filters'
 import type { Ticket, TicketArea } from '@/lib/types'
@@ -91,9 +91,15 @@ export default async function TicketsPage({
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-zinc-300">{ticket.requester?.full_name}</p>
-                    {ticket.requester?.department && (
-                      <p className="text-xs text-zinc-600">{ticket.requester.department}</p>
+                    {ticket.requester ? (
+                      <>
+                        <p className="text-zinc-300">{ticket.requester.full_name}</p>
+                        {ticket.requester.department && (
+                          <p className="text-xs text-zinc-600">{ticket.requester.department}</p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-zinc-600">Não identificado</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -119,6 +125,11 @@ export default async function TicketsPage({
                     <Badge className={TICKET_STATUS_COLORS[ticket.status]}>
                       {TICKET_STATUS_LABELS[ticket.status]}
                     </Badge>
+                    {ticket.status === 'scheduled' && ticket.scheduled_for && (
+                      <p className="mt-1 text-xs text-violet-400/80">
+                        {formatDateShort(ticket.scheduled_for)} · {getScheduleState(ticket.scheduled_for).label}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {(() => {

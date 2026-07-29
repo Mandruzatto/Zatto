@@ -15,6 +15,7 @@ export default async function DashboardPage() {
     { data: warrantyAssets },
     { data: activeTicketRows },
     { data: approvedRows },
+    { data: scheduledRows },
   ] = await Promise.all([
     supabase.from('tickets').select('status, resolution_due_at'),
     supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'in_use'),
@@ -52,6 +53,16 @@ export default async function DashboardPage() {
       .eq('approval_status', 'approved')
       .eq('status', 'open')
       .order('updated_at', { ascending: true }),
+    supabase
+      .from('tickets')
+      .select(`
+        id, ticket_number, title, scheduled_for,
+        requester:profiles!requester_id(full_name),
+        assignee:profiles!assignee_id(full_name)
+      `)
+      .eq('status', 'scheduled')
+      .not('scheduled_for', 'is', null)
+      .order('scheduled_for', { ascending: true }),
   ])
 
   // Tickets ativos cuja última mensagem pública na conversa foi do colaborador (solicitante)
@@ -107,6 +118,15 @@ export default async function DashboardPage() {
     })
     .sort((a, b) => a.decided_at.localeCompare(b.decided_at))
 
+  const scheduledTickets: DashboardData['scheduledTickets'] = (scheduledRows ?? []).map((t) => ({
+    id: t.id,
+    ticket_number: t.ticket_number,
+    title: t.title,
+    scheduled_for: t.scheduled_for as string,
+    requester_name: (t.requester as unknown as { full_name: string } | null)?.full_name ?? '',
+    assignee_name: (t.assignee as unknown as { full_name: string } | null)?.full_name ?? null,
+  }))
+
   const statusCounts: Record<TicketStatus, number> = {
     open: 0,
     awaiting_approval: 0,
@@ -141,6 +161,7 @@ export default async function DashboardPage() {
     warrantyAssets: (warrantyAssets ?? []) as unknown as Asset[],
     awaitingReply,
     newlyApproved,
+    scheduledTickets,
     slaBreached,
     slaAtRisk,
   }

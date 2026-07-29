@@ -13,6 +13,7 @@ import {
   X,
   MessageSquare,
   CheckCircle2,
+  CalendarClock,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +29,7 @@ import {
   TICKET_STATUS_HEX,
   TICKET_PRIORITY_LABELS,
   TICKET_PRIORITY_COLORS,
+  getScheduleState,
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, Asset } from '@/lib/types'
 
@@ -56,11 +58,20 @@ export interface DashboardData {
     approver_name: string
     decided_at: string
   }[]
+  scheduledTickets: {
+    id: string
+    ticket_number: string
+    title: string
+    scheduled_for: string
+    requester_name: string
+    assignee_name: string | null
+  }[]
   slaBreached: number
   slaAtRisk: number
 }
 
-type WidgetId = 'stats' | 'progress' | 'pie' | 'awaiting' | 'approved' | 'warranty' | 'recent' | 'critical'
+type WidgetId =
+  | 'stats' | 'progress' | 'pie' | 'awaiting' | 'approved' | 'scheduled' | 'warranty' | 'recent' | 'critical'
 
 const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats', label: 'Indicadores' },
@@ -68,12 +79,14 @@ const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'pie', label: 'Gráfico de pizza' },
   { id: 'awaiting', label: 'Aguardando resposta' },
   { id: 'approved', label: 'Aprovados' },
+  { id: 'scheduled', label: 'Agenda' },
   { id: 'warranty', label: 'Alertas de garantia' },
   { id: 'recent', label: 'Chamados recentes' },
   { id: 'critical', label: 'Chamados críticos' },
 ]
 
 const STORAGE_KEY = 'zatto:dashboard-widgets'
+const STATUS_FILTER_KEY = 'zatto:dashboard-status-filter'
 
 const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   stats: true,
@@ -81,49 +94,75 @@ const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   pie: true,
   awaiting: true,
   approved: true,
+  scheduled: true,
   warranty: true,
   recent: true,
   critical: true,
 }
 
-function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; total: number }) {
+const ALL_STATUSES: TicketStatus[] = [
+  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'resolved', 'closed',
+]
+
+const DEFAULT_STATUS_FILTER: Record<TicketStatus, boolean> = {
+  open: true,
+  awaiting_approval: true,
+  in_progress: true,
+  pending: true,
+  scheduled: true,
+  resolved: true,
+  closed: true,
+}
+
+function DonutChart({
+  counts,
+  statuses,
+  total,
+}: {
+  counts: Record<TicketStatus, number>
+  statuses: TicketStatus[]
+  total: number
+}) {
   const router = useRouter()
   const [hovered, setHovered] = useState<TicketStatus | null>(null)
   const radius = 15.915494 // circumference = 100
-  let cumulative = 0
+
+  const segments = statuses.reduce<{ status: TicketStatus; count: number; pct: number; offset: number }[]>(
+    (acc, status) => {
+      const count = counts[status]
+      if (count === 0) return acc
+      const consumed = acc.reduce((sum, segment) => sum + segment.pct, 0)
+      acc.push({ status, count, pct: (count / total) * 100, offset: -consumed })
+      return acc
+    },
+    []
+  )
 
   return (
     <div className="flex items-center gap-8">
       <div className="relative h-40 w-40 shrink-0">
         <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90">
           <circle cx="21" cy="21" r={radius} fill="none" stroke="#27272a" strokeWidth="5" />
-          {(Object.keys(counts) as TicketStatus[]).map((status) => {
-            const count = counts[status]
-            if (count === 0) return null
-            const pct = (count / total) * 100
-            const dashoffset = -cumulative
-            cumulative += pct
-            return (
-              <circle
-                key={status}
-                cx="21"
-                cy="21"
-                r={radius}
-                fill="none"
-                stroke={TICKET_STATUS_HEX[status]}
-                strokeWidth={hovered === status ? 6.5 : 5}
-                strokeDasharray={`${pct} ${100 - pct}`}
-                strokeDashoffset={dashoffset}
-                className="transition-all duration-300 cursor-pointer"
-                style={{ opacity: hovered && hovered !== status ? 0.35 : 1 }}
-                onMouseEnter={() => setHovered(status)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => router.push(`/tickets?status=${status}`)}
-              >
-                <title>{`${TICKET_STATUS_LABELS[status]}: ${count}`}</title>
-              </circle>
-            )
-          })}
+          {segments.map(({ status, count, pct, offset }) => (
+            <circle
+              key={status}
+              cx="21"
+              cy="21"
+              r={radius}
+              fill="none"
+              stroke={TICKET_STATUS_HEX[status]}
+              strokeWidth={hovered === status ? 6.5 : 5}
+              strokeDasharray={`${pct} ${100 - pct}`}
+              strokeDashoffset={offset}
+              className="transition-all duration-300 cursor-pointer"
+              style={{ opacity: hovered && hovered !== status ? 0.35 : 1 }}
+              onMouseEnter={() => setHovered(status)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => router.push(`/tickets?status=${status}`)}
+            >
+              <title>{`${TICKET_STATUS_LABELS[status]}: ${count}`}</title>
+            </circle>
+          ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           {hovered ? (
@@ -142,7 +181,7 @@ function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; t
         </div>
       </div>
       <div className="space-y-1 min-w-0">
-        {(Object.keys(counts) as TicketStatus[]).map((status) => {
+        {statuses.map((status) => {
           const count = counts[status]
           const pct = total > 0 ? Math.round((count / total) * 100) : 0
           return (
@@ -169,6 +208,7 @@ function DonutChart({ counts, total }: { counts: Record<TicketStatus, number>; t
 
 export function DashboardView({ data }: { data: DashboardData }) {
   const [visibility, setVisibility] = useState<Record<WidgetId, boolean>>(DEFAULT_VISIBILITY)
+  const [statusFilter, setStatusFilter] = useState<Record<TicketStatus, boolean>>(DEFAULT_STATUS_FILTER)
   const [customizing, setCustomizing] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
@@ -178,6 +218,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
       // Restore the user's persisted widget layout after hydration.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setVisibility({ ...DEFAULT_VISIBILITY, ...JSON.parse(stored) })
+      const storedStatuses = localStorage.getItem(STATUS_FILTER_KEY)
+      if (storedStatuses) setStatusFilter({ ...DEFAULT_STATUS_FILTER, ...JSON.parse(storedStatuses) })
     } catch {}
     setHydrated(true)
   }, [])
@@ -190,6 +232,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
     })
   }
 
+  function toggleStatus(status: TicketStatus) {
+    setStatusFilter((prev) => {
+      const next = { ...prev, [status]: !prev[status] }
+      localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  function setAllStatuses(value: boolean) {
+    const next = ALL_STATUSES.reduce(
+      (acc, status) => ({ ...acc, [status]: value }),
+      {} as Record<TicketStatus, boolean>
+    )
+    setStatusFilter(next)
+    localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(next))
+  }
+
   const activeTickets =
     data.statusCounts.open +
     data.statusCounts.awaiting_approval +
@@ -197,6 +256,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
     data.statusCounts.pending +
     data.statusCounts.scheduled
   const totalTickets = Object.values(data.statusCounts).reduce((a, b) => a + b, 0)
+
+  const selectedStatuses = ALL_STATUSES.filter((status) => statusFilter[status])
+  const selectedTotal = selectedStatuses.reduce((sum, status) => sum + data.statusCounts[status], 0)
 
   const expiringAssets = data.warrantyAssets.filter((a) => {
     const s = getWarrantyStatus(a.warranty_end_date)
@@ -288,57 +350,95 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Andamento dos chamados</CardTitle>
-            <span className="text-xs text-zinc-600 tabular-nums">{totalTickets} no total</span>
+            <span className="text-xs text-zinc-600 tabular-nums">
+              {selectedTotal} de {totalTickets} no total
+            </span>
           </CardHeader>
           <CardContent>
-            {totalTickets > 0 ? (
-              <>
-                <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800/60">
-                  {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) =>
-                    data.statusCounts[status] > 0 ? (
-                      <Link
-                        key={status}
-                        href={`/tickets?status=${status}`}
-                        title={`${TICKET_STATUS_LABELS[status]}: ${data.statusCounts[status]}`}
-                        className={cn(TICKET_STATUS_BAR_COLORS[status], 'hover:opacity-75 transition-opacity')}
-                        style={{ width: `${(data.statusCounts[status] / totalTickets) * 100}%` }}
-                      />
-                    ) : null
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3.5">
-                  {(Object.keys(data.statusCounts) as TicketStatus[]).map((status) => (
+            {selectedTotal > 0 ? (
+              <div className="flex h-2 w-full overflow-hidden rounded-full bg-zinc-800/60">
+                {selectedStatuses.map((status) =>
+                  data.statusCounts[status] > 0 ? (
                     <Link
                       key={status}
                       href={`/tickets?status=${status}`}
-                      className="flex items-center gap-1.5 rounded-md px-2 py-1 -mx-0.5 hover:bg-zinc-900 transition-colors"
-                    >
-                      <span className={cn('h-2 w-2 rounded-full', TICKET_STATUS_BAR_COLORS[status])} />
-                      <span className="text-xs text-zinc-400">{TICKET_STATUS_LABELS[status]}</span>
-                      <span className="text-xs font-medium text-zinc-200 tabular-nums">
-                        {data.statusCounts[status]}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </>
+                      title={`${TICKET_STATUS_LABELS[status]}: ${data.statusCounts[status]}`}
+                      className={cn(TICKET_STATUS_BAR_COLORS[status], 'hover:opacity-75 transition-opacity')}
+                      style={{ width: `${(data.statusCounts[status] / selectedTotal) * 100}%` }}
+                    />
+                  ) : null
+                )}
+              </div>
             ) : (
-              <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
+              <div className="h-2 w-full rounded-full bg-zinc-800/60" />
             )}
+
+            <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              {ALL_STATUSES.map((status) => {
+                const active = statusFilter[status]
+                return (
+                  <button
+                    key={status}
+                    onClick={() => toggleStatus(status)}
+                    title={active ? 'Remover do total' : 'Incluir no total'}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md border px-2 py-1 transition-colors',
+                      active
+                        ? 'border-zinc-700 bg-zinc-900 text-zinc-200'
+                        : 'border-zinc-800/70 text-zinc-600 hover:border-zinc-700'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-2 w-2 rounded-full',
+                        active ? TICKET_STATUS_BAR_COLORS[status] : 'bg-zinc-700'
+                      )}
+                    />
+                    <span className="text-xs">{TICKET_STATUS_LABELS[status]}</span>
+                    <span className="text-xs font-medium tabular-nums">{data.statusCounts[status]}</span>
+                  </button>
+                )
+              })}
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setAllStatuses(true)}
+                  className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => setAllStatuses(false)}
+                  className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <p className="mt-2 text-[11px] text-zinc-700">
+              Clique em um status para incluí-lo ou removê-lo do total e dos gráficos.
+            </p>
           </CardContent>
         </Card>
       )}
 
       {visibility.pie && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Distribuição por status</CardTitle>
+            <span className="text-xs text-zinc-600 tabular-nums">{selectedTotal} chamados</span>
           </CardHeader>
           <CardContent className="py-5">
-            {totalTickets > 0 ? (
-              <DonutChart counts={data.statusCounts} total={totalTickets} />
+            {selectedTotal > 0 ? (
+              <DonutChart
+                counts={data.statusCounts}
+                statuses={selectedStatuses}
+                total={selectedTotal}
+              />
             ) : (
-              <p className="text-[13px] text-zinc-600 py-2">Nenhum chamado registrado ainda.</p>
+              <p className="text-[13px] text-zinc-600 py-2">
+                Nenhum status selecionado no andamento dos chamados.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -417,6 +517,47 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <Badge className="bg-emerald-500/10 text-emerald-400">Aprovado</Badge>
                 </Link>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.scheduled && data.scheduledTickets.length > 0 && (
+        <Card className="border-violet-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-violet-400" />
+              Agenda
+              <span className="text-xs font-normal text-zinc-600">
+                — chamados agendados, do mais próximo ao mais distante
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-zinc-800/70">
+              {data.scheduledTickets.map((ticket) => {
+                const schedule = getScheduleState(ticket.scheduled_for)
+                return (
+                  <Link
+                    key={ticket.id}
+                    href={`/tickets/${ticket.id}`}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-zinc-200 truncate">{ticket.title}</p>
+                      <p className="text-xs text-zinc-600 mt-0.5">
+                        <span className="font-mono">{ticket.ticket_number}</span>
+                        {' · '}
+                        {ticket.requester_name}
+                        {' · '}
+                        {formatDate(ticket.scheduled_for)}
+                        {ticket.assignee_name ? ` · ${ticket.assignee_name}` : ' · sem agente'}
+                      </p>
+                    </div>
+                    <Badge className={schedule.className}>{schedule.label}</Badge>
+                  </Link>
+                )
+              })}
             </div>
           </CardContent>
         </Card>

@@ -1,8 +1,29 @@
 @import "tailwindcss";
 
+/* Light theme remaps the zinc scale used across the UI, so every surface,
+   border and text token flips without touching component classes. */
+html.light {
+  color-scheme: light;
+  --color-zinc-50: oklch(14.1% 0.005 285.823);
+  --color-zinc-100: oklch(18% 0.006 285.885);
+  --color-zinc-200: oklch(24% 0.006 286.033);
+  --color-zinc-300: oklch(30% 0.008 285.805);
+  --color-zinc-400: oklch(38% 0.012 285.786);
+  --color-zinc-500: oklch(45% 0.016 285.938);
+  --color-zinc-600: oklch(52% 0.016 286.067);
+  --color-zinc-700: oklch(78% 0.008 286.286);
+  --color-zinc-800: oklch(88% 0.005 286.32);
+  --color-zinc-900: oklch(96.5% 0.002 286.375);
+  --color-zinc-950: oklch(100% 0 none);
+}
+
+html {
+  color-scheme: dark;
+}
+
 body {
-  background: #09090b;
-  color: #fafafa;
+  background: var(--color-zinc-950);
+  color: var(--color-zinc-50);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -11,15 +32,15 @@ body {
 }
 
 input, textarea, select {
-  color: #f4f4f5;
+  color: var(--color-zinc-100);
 }
 
 input::placeholder, textarea::placeholder {
-  color: #52525b;
+  color: var(--color-zinc-600);
 }
 
 ::selection {
-  background: #3f3f46;
+  background: var(--color-zinc-700);
 }
 
 ::-webkit-scrollbar {
@@ -32,16 +53,17 @@ input::placeholder, textarea::placeholder {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--color-zinc-800);
   border-radius: 5px;
-  border: 2px solid #09090b;
+  border: 2px solid var(--color-zinc-950);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--color-zinc-700);
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
+html:not(.light) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not(.light) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
 }
 
