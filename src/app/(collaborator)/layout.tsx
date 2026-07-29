@@ -33,6 +33,7 @@ export default async function CollaboratorLayout({
       <SessionTimeout />
       <CollaboratorSidebar
         canApprove={canApprove}
+        pendingApprovals={count ?? 0}
         user={{
           fullName: profile?.full_name || user.email || 'Usuário',
           email: profile?.email || user.email || '',

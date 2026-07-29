@@ -62,7 +62,7 @@ export function AnalystNewTicketForm({
       catalog_item_id: catalogItemId,
       title: item ? item.title : prev.title,
       description: item && !prev.description ? item.description : prev.description,
-      type: item?.slug.includes('incidente') ? 'incident' : item ? 'request' : prev.type,
+      type: item?.default_type ?? prev.type,
       priority: (item?.default_priority ?? prev.priority) as TicketPriority,
       area: (item?.area ?? prev.area) as TicketArea | '',
       status: item?.requires_approval ? 'awaiting_approval' : prev.status === 'awaiting_approval' && !item ? 'open' : prev.status,

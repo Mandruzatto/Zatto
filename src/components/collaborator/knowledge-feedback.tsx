@@ -26,9 +26,9 @@ export function KnowledgeFeedback({ articleId }: { articleId: string }) {
     <div className="mt-6 text-center text-[13px] text-zinc-500">
       {sent ? 'Obrigado! Seu feedback foi registrado.' : (
         <>Este artigo ajudou?{' '}
-          <button onClick={() => vote(true)} className="ml-2 text-zinc-300 hover:text-white">Sim</button>
+          <button onClick={() => vote(true)} className="ml-2 text-zinc-300 hover:text-zinc-50">Sim</button>
           <span className="mx-2 text-zinc-800">·</span>
-          <button onClick={() => vote(false)} className="text-zinc-300 hover:text-white">Não</button>
+          <button onClick={() => vote(false)} className="text-zinc-300 hover:text-zinc-50">Não</button>
         </>
       )}
     </div>

@@ -132,7 +132,7 @@ export function TicketAssetsManager({
                 <Monitor className="h-4 w-4 text-zinc-600 shrink-0" />
                 <Link
                   href={`/assets/${asset.id}`}
-                  className="text-[13px] text-zinc-300 hover:text-white transition-colors truncate flex-1 min-w-0"
+                  className="text-[13px] text-zinc-300 hover:text-zinc-50 transition-colors truncate flex-1 min-w-0"
                 >
                   {asset.name}
                   <span className="text-zinc-600 text-xs ml-1.5 font-mono">{asset.asset_tag}</span>

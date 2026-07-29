@@ -21,7 +21,7 @@ export function CatalogTicketForm({ item }: { item: ServiceCatalogItem }) {
   const [description, setDescription] = useState('')
   const [responses, setResponses] = useState<Record<string, string>>({})
 
-  const ticketType: TicketType = item.slug.includes('incidente') ? 'incident' : 'request'
+  const ticketType: TicketType = item.default_type ?? 'request'
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,10 +36,14 @@ export function CatalogTicketForm({ item }: { item: ServiceCatalogItem }) {
       return
     }
 
+    // Titles stay recognisable in the queue: the catalog item, qualified by the
+    // first choice the requester made.
+    const choice = item.form_schema.find(
+      (field) => field.type === 'select' && responses[field.key]?.trim()
+    )
     const subject =
       responses.subject?.trim() ||
-      responses.details?.trim()?.slice(0, 80) ||
-      item.title
+      (choice ? `${item.title} — ${responses[choice.key].trim()}` : item.title)
 
     const { data, error } = await supabase.from('tickets').insert({
       requester_id: user.id,

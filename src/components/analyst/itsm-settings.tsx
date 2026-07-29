@@ -184,7 +184,7 @@ export function ItsmSettings({
           {policies.map((row)=>(
             <div key={row.id as string} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 py-2.5">
               <button type="button" className="min-w-0 text-left" onClick={() => startEdit(row)}>
-                <p className="text-[13px] text-zinc-200 hover:text-white">{row.name as string}</p>
+                <p className="text-[13px] text-zinc-200 hover:text-zinc-50">{row.name as string}</p>
                 <p className="text-xs text-zinc-600">
                   {TICKET_PRIORITY_LABELS[row.priority as TicketPriority] ?? String(row.priority)}
                   {' · '}

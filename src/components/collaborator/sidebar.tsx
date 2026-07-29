@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Ticket,
-  PlusCircle,
+  Plus,
   Monitor,
   Home,
+  BookOpen,
   CheckSquare,
   LogOut,
   Zap,
@@ -18,16 +19,18 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { href: '/portal', label: 'Início', icon: Home },
-  { href: '/new-ticket', label: 'Abrir Chamado', icon: PlusCircle },
   { href: '/my-tickets', label: 'Meus Chamados', icon: Ticket },
   { href: '/my-assets', label: 'Meus Equipamentos', icon: Monitor },
+  { href: '/knowledge', label: 'Base de conhecimento', icon: BookOpen },
 ]
 
 export function CollaboratorSidebar({
   canApprove = false,
+  pendingApprovals = 0,
   user,
 }: {
   canApprove?: boolean
+  pendingApprovals?: number
   user: { fullName: string; email: string }
 }) {
   const pathname = usePathname()
@@ -38,6 +41,11 @@ export function CollaboratorSidebar({
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  const items = [
+    ...navItems,
+    ...(canApprove ? [{ href: '/approvals', label: 'Aprovações', icon: CheckSquare }] : []),
+  ]
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-zinc-800/80 bg-zinc-950">
@@ -51,10 +59,21 @@ export function CollaboratorSidebar({
         </div>
       </div>
 
+      <div className="px-2.5 pb-1">
+        <Link
+          href="/new-ticket"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-zinc-50 px-3 py-2 text-[13px] font-medium text-zinc-950 transition-colors hover:bg-zinc-300"
+        >
+          <Plus className="h-4 w-4" />
+          Abrir chamado
+        </Link>
+      </div>
+
       <nav className="flex-1 px-2.5 pt-2 space-y-0.5">
-        {[...navItems, ...(canApprove ? [{ href: '/approvals', label: 'Aprovações', icon: CheckSquare }] : [])].map((item) => {
+        {items.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const badge = item.href === '/approvals' ? pendingApprovals : 0
           return (
             <Link
               key={item.href}
@@ -67,7 +86,12 @@ export function CollaboratorSidebar({
               )}
             >
               <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-zinc-300' : 'text-zinc-600')} />
-              {item.label}
+              <span className="truncate">{item.label}</span>
+              {badge > 0 && (
+                <span className="ml-auto rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-amber-400">
+                  {badge}
+                </span>
+              )}
             </Link>
           )
         })}

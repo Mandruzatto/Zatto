@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/toast'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 }
 
 // Runs before paint so a stored light theme never flashes the dark palette.
-const themeScript = `try{if(localStorage.getItem('zatto:theme')==='light')document.documentElement.classList.add('light')}catch(e){}`
+// data-theme is deliberately not a JSX prop: React would reset it on hydration.
+const themeScript = `try{document.documentElement.dataset.theme=localStorage.getItem('zatto:theme')==='light'?'light':'dark'}catch(e){}`
 
 export default function RootLayout({
   children,
@@ -24,8 +26,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={inter.className}>
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

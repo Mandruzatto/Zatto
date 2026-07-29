@@ -114,7 +114,7 @@ export default async function TicketDetailPage({
           Solicitante:{' '}
           <Link
             href={`/users/${ticket.requester_id}`}
-            className="font-medium text-zinc-300 hover:text-white transition-colors"
+            className="font-medium text-zinc-300 hover:text-zinc-50 transition-colors"
           >
             {requester?.full_name ?? 'não identificado'}
           </Link>
@@ -322,7 +322,7 @@ export default async function TicketDetailPage({
                 <User className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-zinc-600">Solicitante</p>
-                  <Link href={`/users/${ticket.requester_id}`} className="text-[13px] font-medium text-zinc-200 hover:text-white transition-colors">
+                  <Link href={`/users/${ticket.requester_id}`} className="text-[13px] font-medium text-zinc-200 hover:text-zinc-50 transition-colors">
                     {requester?.full_name}
                   </Link>
                   {requester?.department && (

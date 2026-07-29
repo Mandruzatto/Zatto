@@ -57,7 +57,7 @@ export default async function MyTicketsPage() {
                 <tr key={ticket.id} className="hover:bg-zinc-900/60 transition-colors">
                   <td className="px-4 py-3">
                     <Link href={`/my-tickets/${ticket.id}`} className="group">
-                      <p className="font-medium text-zinc-200 group-hover:text-white">{ticket.title}</p>
+                      <p className="font-medium text-zinc-200 group-hover:text-zinc-50">{ticket.title}</p>
                       <p className="text-xs text-zinc-600 mt-0.5 font-mono">{ticket.ticket_number}</p>
                     </Link>
                   </td>
@@ -85,7 +85,7 @@ export default async function MyTicketsPage() {
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-zinc-600">
                     Você ainda não abriu nenhum chamado.{' '}
-                    <Link href="/new-ticket" className="text-zinc-300 hover:text-white underline underline-offset-2">
+                    <Link href="/new-ticket" className="text-zinc-300 hover:text-zinc-50 underline underline-offset-2">
                       Abrir chamado
                     </Link>
                   </td>

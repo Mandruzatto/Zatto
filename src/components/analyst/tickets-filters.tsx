@@ -35,11 +35,27 @@ export function TicketsFilters({ exclude = [] }: { exclude?: string[] }) {
     router.replace(`${pathname}${params.size ? `?${params}` : ''}`)
   }
 
-  const hasFilters = filters.some((f) => searchParams.get(f.key)) || searchParams.get('q')
+  const hasFilters =
+    filters.some((f) => searchParams.get(f.key)) ||
+    searchParams.get('q') ||
+    searchParams.get('assignee')
 
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
       <ListSearch placeholder="Buscar por título ou número..." className="w-64" />
+
+      {searchParams.get('assignee') === 'me' && (
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-[12px] font-medium text-zinc-100">
+          Atribuídos a mim
+          <button
+            onClick={() => setParam('assignee', '')}
+            className="text-zinc-400 hover:text-zinc-100"
+            aria-label="Remover filtro de responsável"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      )}
 
       {filters.map((filter) => {
         const current = searchParams.get(filter.key) ?? ''

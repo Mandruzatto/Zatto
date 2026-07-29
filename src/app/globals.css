@@ -2,7 +2,7 @@
 
 /* Light theme remaps the zinc scale used across the UI, so every surface,
    border and text token flips without touching component classes. */
-html.light {
+html[data-theme='light'] {
   color-scheme: light;
   --color-zinc-50: oklch(14.1% 0.005 285.823);
   --color-zinc-100: oklch(18% 0.006 285.885);
@@ -62,8 +62,8 @@ input::placeholder, textarea::placeholder {
   background: var(--color-zinc-700);
 }
 
-html:not(.light) input[type="date"]::-webkit-calendar-picker-indicator,
-html:not(.light) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+html:not([data-theme='light']) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not([data-theme='light']) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
 }
 

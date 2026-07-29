@@ -15,10 +15,11 @@ import type { Ticket, TicketArea } from '@/lib/types'
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; type?: string; area?: string; sla?: string; q?: string }>
+  searchParams: Promise<{ status?: string; priority?: string; type?: string; area?: string; sla?: string; q?: string; assignee?: string }>
 }) {
   const supabase = await createClient()
   const params = await searchParams
+  const { data: { user } } = await supabase.auth.getUser()
 
   let query = supabase
     .from('tickets')
@@ -26,6 +27,7 @@ export default async function TicketsPage({
     .order('created_at', { ascending: false })
 
   if (params.status) query = query.eq('status', params.status)
+  if (params.assignee === 'me' && user) query = query.eq('assignee_id', user.id)
   if (params.priority) query = query.eq('priority', params.priority)
   if (params.type) query = query.eq('type', params.type)
   if (params.area) query = query.eq('area', params.area)
@@ -86,7 +88,7 @@ export default async function TicketsPage({
                 <tr key={ticket.id} className="hover:bg-zinc-900/60 transition-colors">
                   <td className="px-4 py-3">
                     <Link href={`/tickets/${ticket.id}`} className="group">
-                      <p className="font-medium text-zinc-200 group-hover:text-white">{ticket.title}</p>
+                      <p className="font-medium text-zinc-200 group-hover:text-zinc-50">{ticket.title}</p>
                       <p className="text-xs text-zinc-600 mt-0.5 font-mono">{ticket.ticket_number}</p>
                     </Link>
                   </td>

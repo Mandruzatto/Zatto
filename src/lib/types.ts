@@ -30,7 +30,9 @@ export interface ServiceCatalogItem {
   instructions?: string | null
   keywords: string[]
   area?: TicketArea | null
+  category: string
   default_priority: TicketPriority
+  default_type: TicketType
   requires_approval: boolean
   form_schema: CatalogField[]
   is_published: boolean

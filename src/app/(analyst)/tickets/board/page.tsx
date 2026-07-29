@@ -15,10 +15,11 @@ const PRIORITY_WEIGHT: Record<TicketPriority, number> = {
 export default async function TicketsBoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ priority?: string; type?: string; area?: string; sla?: string; q?: string; sort?: string }>
+  searchParams: Promise<{ priority?: string; type?: string; area?: string; sla?: string; q?: string; sort?: string; assignee?: string }>
 }) {
   const supabase = await createClient()
   const params = await searchParams
+  const { data: { user } } = await supabase.auth.getUser()
 
   let query = supabase
     .from('tickets')
@@ -30,6 +31,7 @@ export default async function TicketsBoardPage({
     `)
     .order('created_at', { ascending: false })
 
+  if (params.assignee === 'me' && user) query = query.eq('assignee_id', user.id)
   if (params.priority) query = query.eq('priority', params.priority)
   if (params.type) query = query.eq('type', params.type)
   if (params.area) query = query.eq('area', params.area)

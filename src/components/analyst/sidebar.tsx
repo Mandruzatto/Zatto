@@ -2,21 +2,18 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Ticket,
   Monitor,
   Users,
   Settings,
-  LogOut,
   Zap,
   ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import { NavUser } from '@/components/nav-user'
-import { ThemeToggle } from '@/components/theme-toggle'
 
 type NavItem = {
   href: string
@@ -47,14 +44,7 @@ export function AnalystSidebar({
   user: { fullName: string; email: string }
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
 
   function isChildActive(href: string) {
     if (href === '/tickets/board') return pathname === '/tickets/board'
@@ -142,16 +132,9 @@ export function AnalystSidebar({
         })}
       </nav>
 
+      {/* Theme and sign out live in the header avatar menu. */}
       <div className="border-t border-zinc-800/80 p-2.5">
         <NavUser fullName={user.fullName} email={user.email} roleLabel="Analista" />
-        <ThemeToggle />
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200 transition-colors"
-        >
-          <LogOut className="h-4 w-4 text-zinc-600" />
-          Sair
-        </button>
       </div>
     </aside>
   )
