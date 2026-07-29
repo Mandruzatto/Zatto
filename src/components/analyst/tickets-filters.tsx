@@ -19,10 +19,11 @@ const FILTERS: { key: string; placeholder: string; labels: Record<string, string
   { key: 'sla', placeholder: 'SLA', labels: { breached: 'Vencido', risk: 'Em risco (4h)' } },
 ]
 
-export function TicketsFilters() {
+export function TicketsFilters({ exclude = [] }: { exclude?: string[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const filters = FILTERS.filter((filter) => !exclude.includes(filter.key))
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -34,13 +35,13 @@ export function TicketsFilters() {
     router.replace(`${pathname}${params.size ? `?${params}` : ''}`)
   }
 
-  const hasFilters = FILTERS.some((f) => searchParams.get(f.key)) || searchParams.get('q')
+  const hasFilters = filters.some((f) => searchParams.get(f.key)) || searchParams.get('q')
 
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
       <ListSearch placeholder="Buscar por título ou número..." className="w-64" />
 
-      {FILTERS.map((filter) => {
+      {filters.map((filter) => {
         const current = searchParams.get(filter.key) ?? ''
         return (
           <div key={filter.key} className="relative">
