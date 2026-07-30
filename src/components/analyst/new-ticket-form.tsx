@@ -196,7 +196,7 @@ export function AnalystNewTicketForm({
               <Select
                 label="Status"
                 options={Object.entries(TICKET_STATUS_LABELS)
-                  .filter(([value]) => !['resolved', 'closed'].includes(value))
+                  .filter(([value]) => value !== 'finalized')
                   .map(([value, label]) => ({ value, label }))}
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value as TicketStatus })}

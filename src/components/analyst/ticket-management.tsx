@@ -18,7 +18,7 @@ import {
   cn,
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, TicketPriority, TicketType, TicketArea } from '@/lib/types'
-import { Lock, MessageSquare, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import type { TicketApproval } from '@/lib/types'
 
 interface TicketManagementProps {
@@ -53,7 +53,7 @@ export function TicketManagement({
     scheduled_for: toDateTimeLocalValue(ticket.scheduled_for),
   })
 
-  const needsResolution = form.status === 'resolved' || form.status === 'closed'
+  const needsResolution = form.status === 'finalized'
   const isPending = form.status === 'pending'
   const needsApprover = form.status === 'awaiting_approval'
   const isScheduled = form.status === 'scheduled'
@@ -100,7 +100,7 @@ export function TicketManagement({
     if (needsApprover) {
       updates.approval_status = 'pending'
     } else if (ticket.status === 'awaiting_approval' && form.status !== 'awaiting_approval') {
-      updates.approval_status = form.status === 'closed' ? 'cancelled' : ticket.approval_status
+      updates.approval_status = form.status === 'finalized' ? 'cancelled' : ticket.approval_status
     }
 
     if (needsResolution && !ticket.resolved_at) {
@@ -198,9 +198,7 @@ export function TicketManagement({
             rows={3}
             value={form.resolution}
             onChange={(e) => setForm({ ...form, resolution: e.target.value })}
-            hint={form.status === 'closed'
-              ? 'Obrigatório para encerrar o chamado'
-              : 'Obrigatório para resolver o chamado'}
+            hint="Obrigatório para finalizar o chamado"
           />
         )}
         {isPending && (
@@ -285,70 +283,6 @@ export function TicketManagement({
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-export function CommentForm({ ticketId }: { ticketId: string }) {
-  const router = useRouter()
-  const supabase = createClient()
-  const [content, setContent] = useState('')
-  const [isInternal, setIsInternal] = useState(false)
-  const [sending, setSending] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!content.trim()) return
-    setSending(true)
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { error } = await supabase.from('ticket_comments').insert({
-      ticket_id: ticketId,
-      author_id: user.id,
-      content: content.trim(),
-      is_internal: isInternal,
-    })
-
-    setSending(false)
-    if (error) {
-      toast('Erro ao enviar comentário', 'error')
-      return
-    }
-    toast(isInternal ? 'Nota interna salva' : 'Resposta enviada')
-    setContent('')
-    setIsInternal(false)
-    router.refresh()
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="px-5 py-4 border-t border-zinc-800/70 space-y-3">
-      <Textarea
-        placeholder={isInternal ? 'Nota interna (visível só para analistas)...' : 'Responder ao solicitante...'}
-        rows={3}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className={isInternal ? 'border-amber-500/30 bg-amber-500/[0.03]' : ''}
-      />
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setIsInternal(!isInternal)}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium border transition-colors',
-            isInternal
-              ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-              : 'border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
-          )}
-        >
-          {isInternal ? <Lock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
-          {isInternal ? 'Nota interna' : 'Resposta pública'}
-        </button>
-        <Button type="submit" size="sm" loading={sending} disabled={!content.trim()}>
-          Enviar
-        </Button>
-      </div>
-    </form>
   )
 }
 

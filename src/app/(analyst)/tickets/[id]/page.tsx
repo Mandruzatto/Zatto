@@ -2,20 +2,24 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TicketManagement, CommentForm } from '@/components/analyst/ticket-management'
+import { TicketManagement } from '@/components/analyst/ticket-management'
 import { TicketAssetsManager } from '@/components/analyst/ticket-assets'
+import { TicketChat } from '@/components/ticket-chat'
+import { loadTicketChat } from '@/lib/ticket-chat'
+import { CopyTicketNumber } from '@/components/copy-ticket-number'
+import { TicketStatusTimeline, type StatusEvent } from '@/components/analyst/ticket-status-timeline'
+import { RemoteSessionPanel } from '@/components/remote-session-panel'
+import type { RemoteSession } from '@/lib/types'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
   TICKET_TYPE_COLORS, TICKET_TYPE_LABELS,
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
-  ASSET_TYPE_LABELS, ASSET_STATUS_COLORS, ASSET_STATUS_LABELS,
-  getWarrantyStatus, WARRANTY_STATUS_LABELS, WARRANTY_STATUS_COLORS,
   formatDate, getSlaState, getScheduleState
 } from '@/lib/utils'
-import { Monitor, User, Calendar, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import type { Asset, Profile, Ticket, TicketApproval, WarrantyStatus, TicketArea } from '@/lib/types'
+import type { Asset, Profile, Ticket, TicketApproval, TicketArea } from '@/lib/types'
 
 export default async function TicketDetailPage({
   params,
@@ -42,10 +46,12 @@ export default async function TicketDetailPage({
   const [
     { data: ticketAssets },
     { data: requesterAssets },
-    { data: comments },
+    messages,
     { data: analysts },
     { data: approval },
     { data: approvers },
+    { data: statusEvents },
+    { data: remoteSessions },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -53,14 +59,22 @@ export default async function TicketDetailPage({
       .select('asset:assets(*)')
       .eq('user_id', ticket.requester_id)
       .is('returned_at', null),
-    supabase
-      .from('ticket_comments')
-      .select('*, author:profiles!author_id(full_name, role)')
-      .eq('ticket_id', id)
-      .order('created_at', { ascending: true }),
+    loadTicketChat(id, { includeInternal: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
     supabase.from('ticket_approvals').select('*, approver:profiles!approver_id(*)').eq('ticket_id', id).maybeSingle(),
     supabase.from('profiles').select('id, full_name').order('full_name'),
+    supabase
+      .from('ticket_events')
+      .select('id, from_status, to_status, created_at, actor:profiles!actor_id(full_name)')
+      .eq('ticket_id', id)
+      .eq('event_type', 'status_change')
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('remote_sessions')
+      .select('*, proposer:profiles!proposed_by(full_name)')
+      .eq('ticket_id', id)
+      .order('scheduled_for', { ascending: false }),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -69,14 +83,16 @@ export default async function TicketDetailPage({
   }) | null
   const isApproved = ticket.approval_status === 'approved' || ticketApproval?.decision === 'approved'
   const isRejected = ticket.approval_status === 'rejected' || ticketApproval?.decision === 'rejected'
+  const sla = ticket.resolution_due_at
+    ? getSlaState(ticket.resolution_due_at, ticket.resolved_at)
+    : null
 
-  type CommentRow = {
-    id: string
-    content: string
-    is_internal: boolean
-    created_at: string
-    author: { full_name: string; role: string } | null
-  }
+  const formResponses = (ticket.form_responses ?? {}) as Record<string, string>
+  const defaultAnydesk = formResponses.anydesk ?? ''
+  const sessions = (remoteSessions ?? []).map((row) => ({
+    ...row,
+    proposer: row.proposer as unknown as { full_name: string } | null,
+  })) as RemoteSession[]
 
   return (
     <div className="p-6 space-y-5 max-w-5xl">
@@ -87,7 +103,7 @@ export default async function TicketDetailPage({
 
       <div>
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-          <span className="text-[13px] text-zinc-600 font-mono">{ticket.ticket_number}</span>
+          <CopyTicketNumber value={ticket.ticket_number} />
           <Badge className={TICKET_STATUS_COLORS[ticket.status as keyof typeof TICKET_STATUS_COLORS]}>
             {TICKET_STATUS_LABELS[ticket.status as keyof typeof TICKET_STATUS_LABELS]}
           </Badge>
@@ -108,6 +124,9 @@ export default async function TicketDetailPage({
           {isRejected && (
             <Badge className="bg-red-500/10 text-red-400">Rejeitado</Badge>
           )}
+          {sla?.hot && (
+            <Badge className={sla.className}>{sla.label}</Badge>
+          )}
         </div>
         <h1 className="text-lg font-semibold tracking-tight text-zinc-100">{ticket.title}</h1>
         <p className="mt-1 text-[13px] text-zinc-500">
@@ -120,6 +139,20 @@ export default async function TicketDetailPage({
           </Link>
           {requester?.department && <span className="text-zinc-600"> · {requester.department}</span>}
           {requester?.email && <span className="text-zinc-600"> · {requester.email}</span>}
+          {requester?.phone && (
+            <>
+              <span className="text-zinc-600"> · </span>
+              <a
+                href={`https://wa.me/55${requester.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-emerald-400/90 hover:text-emerald-300"
+              >
+                {requester.phone}
+              </a>
+            </>
+          )}
+          <span className="text-zinc-600"> · criado {formatDate(ticket.created_at)}</span>
         </p>
       </div>
 
@@ -137,6 +170,19 @@ export default async function TicketDetailPage({
                 </p>
                 {ticketApproval?.comment && (
                   <p className="text-xs text-zinc-500">Comentário: {ticketApproval.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {isRejected && (
+            <Card className="border-red-500/20">
+              <CardHeader><CardTitle>Solicitação rejeitada</CardTitle></CardHeader>
+              <CardContent>
+                {ticketApproval?.comment ? (
+                  <p className="text-[13px] text-zinc-300">Motivo: {ticketApproval.comment}</p>
+                ) : (
+                  <p className="text-[13px] text-zinc-400">Sem comentário do aprovador.</p>
                 )}
               </CardContent>
             </Card>
@@ -176,77 +222,30 @@ export default async function TicketDetailPage({
               <CardContent>
                 <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{ticket.resolution}</p>
                 {ticket.resolved_at && (
-                  <p className="text-xs text-zinc-600 mt-2.5">Resolvido em {formatDate(ticket.resolved_at)}</p>
+                  <p className="text-xs text-zinc-600 mt-2.5">Finalizado em {formatDate(ticket.resolved_at)}</p>
                 )}
               </CardContent>
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Equipamentos do solicitante</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {requesterAssets && requesterAssets.length > 0 ? (
-                <div className="divide-y divide-zinc-800/70">
-                  {requesterAssets.map((ra) => {
-                    const asset = ra.asset as unknown as Asset
-                    const warranty = getWarrantyStatus(asset.warranty_end_date)
-                    return (
-                      <Link
-                        key={asset.id}
-                        href={`/assets/${asset.id}`}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
-                      >
-                        <Monitor className="h-4 w-4 text-zinc-600 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium text-zinc-200">{asset.name}</p>
-                          <p className="text-xs text-zinc-600 font-mono">
-                            {asset.asset_tag} · {ASSET_TYPE_LABELS[asset.type]}
-                          </p>
-                        </div>
-                        <Badge className={WARRANTY_STATUS_COLORS[warranty as WarrantyStatus]}>
-                          {WARRANTY_STATUS_LABELS[warranty as WarrantyStatus]}
-                        </Badge>
-                        <Badge className={ASSET_STATUS_COLORS[asset.status]}>
-                          {ASSET_STATUS_LABELS[asset.status]}
-                        </Badge>
-                      </Link>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="px-5 py-6 text-[13px] text-zinc-600 text-center">
-                  Nenhum equipamento sob responsabilidade.
-                </div>
-              )}
-            </CardContent>
+          <Card className="overflow-hidden">
+            <TicketChat
+              ticketId={ticket.id}
+              messages={messages}
+              mode="analyst"
+              closed={ticket.status === 'finalized'}
+            />
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Conversa ({comments?.length ?? 0})</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              {comments && comments.length > 0 ? (
-                <div className="divide-y divide-zinc-800/70">
-                  {(comments as unknown as CommentRow[]).map((comment) => (
-                    <div key={comment.id} className={`px-5 py-4 ${comment.is_internal ? 'bg-amber-500/[0.04]' : ''}`}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[13px] font-medium text-zinc-200">{comment.author?.full_name}</span>
-                        {comment.is_internal && (
-                          <span className="text-[11px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded">Interno</span>
-                        )}
-                        <span className="text-xs text-zinc-600 ml-auto">{formatDate(comment.created_at)}</span>
-                      </div>
-                      <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{comment.content}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-5 py-6 text-[13px] text-zinc-600 text-center">Nenhum comentário ainda.</div>
-              )}
-              <CommentForm ticketId={ticket.id} />
-            </CardContent>
-          </Card>
+          <TicketStatusTimeline
+            events={(statusEvents ?? []).map((event) => ({
+              id: event.id,
+              from_status: event.from_status,
+              to_status: event.to_status,
+              created_at: event.created_at,
+              actor: event.actor as unknown as { full_name: string } | null,
+            })) as StatusEvent[]}
+          />
         </div>
 
         <div className="space-y-5">
@@ -257,6 +256,16 @@ export default async function TicketDetailPage({
             currentApproval={(approval as unknown as TicketApproval | null) ?? null}
             currentUserId={user!.id}
           />
+
+          <RemoteSessionPanel
+            ticketId={ticket.id}
+            currentUserId={user!.id}
+            mode="analyst"
+            sessions={sessions}
+            defaultAccessPayload={defaultAnydesk}
+            ticketFinalized={ticket.status === 'finalized'}
+          />
+
           {ticketApproval?.approver_id && ticket.status === 'awaiting_approval' && (
             <Card className="border-cyan-500/20">
               <CardHeader><CardTitle>Fila de aprovação</CardTitle></CardHeader>
@@ -270,41 +279,12 @@ export default async function TicketDetailPage({
               </CardContent>
             </Card>
           )}
-          {isApproved && ticketApproval && (
-            <Card className="border-emerald-500/20">
-              <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
-                <p className="text-[13px] text-emerald-300">Solicitação aprovada</p>
-                <p className="text-xs text-zinc-600">
-                  {ticketApproval.approver?.full_name ?? 'Aprovador'}
-                  {ticketApproval.decided_at ? ` · ${formatDate(ticketApproval.decided_at)}` : ''}
-                </p>
-                {ticketApproval.comment && (
-                  <p className="text-xs text-zinc-500">Comentário: {ticketApproval.comment}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-          {isRejected && ticketApproval && (
-            <Card className="border-red-500/20">
-              <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
-                <p className="text-[13px] text-red-300">Solicitação rejeitada</p>
-                {ticketApproval.comment && (
-                  <p className="text-xs text-zinc-500">Motivo: {ticketApproval.comment}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {ticket.resolution_due_at && (
             <Card>
               <CardHeader><CardTitle>SLA</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {(() => {
-                  const sla = getSlaState(ticket.resolution_due_at, ticket.resolved_at)
-                  return <Badge className={sla.className}>{sla.label}</Badge>
-                })()}
+                {sla && <Badge className={sla.className}>{sla.label}</Badge>}
                 <p className="text-xs text-zinc-600">Resolução até {formatDate(ticket.resolution_due_at)}</p>
                 {ticket.first_response_due_at && (
                   <p className="text-xs text-zinc-600">
@@ -314,42 +294,6 @@ export default async function TicketDetailPage({
               </CardContent>
             </Card>
           )}
-
-          <Card>
-            <CardHeader><CardTitle>Informações</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-3">
-                <User className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-zinc-600">Solicitante</p>
-                  <Link href={`/users/${ticket.requester_id}`} className="text-[13px] font-medium text-zinc-200 hover:text-zinc-50 transition-colors">
-                    {requester?.full_name}
-                  </Link>
-                  {requester?.department && (
-                    <p className="text-xs text-zinc-600">{requester.department}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-zinc-600">Criado em</p>
-                  <p className="text-[13px] font-medium text-zinc-200">{formatDate(ticket.created_at)}</p>
-                </div>
-              </div>
-
-              {ticket.resolved_at && (
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-4 w-4 text-zinc-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-zinc-600">Resolvido em</p>
-                    <p className="text-[13px] font-medium text-zinc-200">{formatDate(ticket.resolved_at)}</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           <TicketAssetsManager
             ticketId={ticket.id}

@@ -144,7 +144,7 @@ export function PortalHome({
           <section className="grid gap-2 sm:grid-cols-3">
             <SummaryTile label="Chamados em andamento" value={tickets.length} href="/my-tickets" />
             <SummaryTile label="Aguardando aprovação" value={awaitingApproval} href="/my-tickets" />
-            <SummaryTile label="Resolvidos em 30 dias" value={resolvedCount} href="/my-tickets" />
+            <SummaryTile label="Finalizados em 30 dias" value={resolvedCount} href="/my-tickets" />
           </section>
 
           <section>

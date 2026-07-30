@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { DashboardView, DashboardData } from '@/components/analyst/dashboard-view'
-import type { TicketStatus, Asset } from '@/lib/types'
+import { findAwaitingReplyTicketIds } from '@/lib/awaiting-reply'
+import { ACTIVE_REMOTE_STATUSES, dayBounds } from '@/lib/remote-sessions'
+import type { TicketStatus, Asset, RemoteSessionStatus } from '@/lib/types'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -16,6 +18,8 @@ export default async function DashboardPage() {
     { data: activeTicketRows },
     { data: approvedRows },
     { data: scheduledRows },
+    { data: remoteTodayRows },
+    { count: remoteReadyCount },
   ] = await Promise.all([
     supabase.from('tickets').select('status, resolution_due_at'),
     supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'in_use'),
@@ -63,6 +67,26 @@ export default async function DashboardPage() {
       .eq('status', 'scheduled')
       .not('scheduled_for', 'is', null)
       .order('scheduled_for', { ascending: true }),
+    (() => {
+      const { start, end } = dayBounds()
+      return supabase
+        .from('remote_sessions')
+        .select(`
+          id, ticket_id, scheduled_for, status,
+          ticket:tickets!ticket_id(
+            ticket_number, title,
+            requester:profiles!requester_id(full_name)
+          )
+        `)
+        .in('status', ACTIVE_REMOTE_STATUSES)
+        .gte('scheduled_for', start)
+        .lte('scheduled_for', end)
+        .order('scheduled_for', { ascending: true })
+    })(),
+    supabase
+      .from('remote_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ready'),
   ])
 
   // Tickets ativos cuja última mensagem pública na conversa foi do colaborador (solicitante)
@@ -75,23 +99,22 @@ export default async function DashboardPage() {
       .eq('is_internal', false)
       .order('created_at', { ascending: true })
 
-    const lastComment = new Map<string, { author_id: string; created_at: string }>()
-    commentRows?.forEach((c) => {
-      lastComment.set(c.ticket_id, { author_id: c.author_id, created_at: c.created_at })
-    })
+    const awaitingIds = findAwaitingReplyTicketIds(
+      activeTicketRows.map((t) => ({ id: t.id, requester_id: t.requester_id })),
+      commentRows ?? []
+    )
+    const lastCommentAt = new Map<string, string>()
+    commentRows?.forEach((c) => lastCommentAt.set(c.ticket_id, c.created_at))
 
     awaitingReply = activeTicketRows
-      .filter((t) => {
-        const last = lastComment.get(t.id)
-        return last && last.author_id === t.requester_id
-      })
+      .filter((t) => awaitingIds.has(t.id))
       .map((t) => ({
         id: t.id,
         ticket_number: t.ticket_number,
         title: t.title,
         status: t.status as TicketStatus,
         requester_name: (t.requester as unknown as { full_name: string } | null)?.full_name ?? '',
-        last_comment_at: lastComment.get(t.id)!.created_at,
+        last_comment_at: lastCommentAt.get(t.id)!,
       }))
       .sort((a, b) => a.last_comment_at.localeCompare(b.last_comment_at))
   }
@@ -133,8 +156,7 @@ export default async function DashboardPage() {
     in_progress: 0,
     pending: 0,
     scheduled: 0,
-    resolved: 0,
-    closed: 0,
+    finalized: 0,
   }
   statusRows?.forEach((r) => {
     statusCounts[r.status as TicketStatus] += 1
@@ -143,13 +165,30 @@ export default async function DashboardPage() {
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   const slaBreached = statusRows?.filter((r) =>
-    r.resolution_due_at && !['resolved', 'closed'].includes(r.status) && new Date(r.resolution_due_at).getTime() < now
+    r.resolution_due_at && r.status !== 'finalized' && new Date(r.resolution_due_at).getTime() < now
   ).length ?? 0
   const slaAtRisk = statusRows?.filter((r) => {
-    if (!r.resolution_due_at || ['resolved', 'closed'].includes(r.status)) return false
+    if (!r.resolution_due_at || r.status === 'finalized') return false
     const diff = new Date(r.resolution_due_at).getTime() - now
     return diff >= 0 && diff <= 4 * 3_600_000
   }).length ?? 0
+
+  const remoteSessionsToday: DashboardData['remoteSessionsToday'] = (remoteTodayRows ?? []).map((row) => {
+    const ticket = row.ticket as unknown as {
+      ticket_number?: string
+      title?: string
+      requester?: { full_name?: string } | null
+    } | null
+    return {
+      id: row.id,
+      ticket_id: row.ticket_id,
+      ticket_number: ticket?.ticket_number ?? '',
+      title: ticket?.title ?? 'Chamado',
+      scheduled_for: row.scheduled_for,
+      status: row.status as RemoteSessionStatus,
+      requester_name: ticket?.requester?.full_name ?? '',
+    }
+  })
 
   const data: DashboardData = {
     statusCounts,
@@ -162,6 +201,8 @@ export default async function DashboardPage() {
     awaitingReply,
     newlyApproved,
     scheduledTickets,
+    remoteSessionsToday,
+    remoteReadyCount: remoteReadyCount ?? 0,
     slaBreached,
     slaAtRisk,
   }

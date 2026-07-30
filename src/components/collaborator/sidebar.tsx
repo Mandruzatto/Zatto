@@ -27,10 +27,12 @@ const navItems = [
 export function CollaboratorSidebar({
   canApprove = false,
   pendingApprovals = 0,
+  waitingOnMe = 0,
   user,
 }: {
   canApprove?: boolean
   pendingApprovals?: number
+  waitingOnMe?: number
   user: { fullName: string; email: string }
 }) {
   const pathname = usePathname()
@@ -73,7 +75,12 @@ export function CollaboratorSidebar({
         {items.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          const badge = item.href === '/approvals' ? pendingApprovals : 0
+          const badge =
+            item.href === '/approvals'
+              ? pendingApprovals
+              : item.href === '/my-tickets'
+                ? waitingOnMe
+                : 0
           return (
             <Link
               key={item.href}

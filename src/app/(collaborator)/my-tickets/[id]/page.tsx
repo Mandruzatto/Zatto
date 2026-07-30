@@ -2,6 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TicketChat } from '@/components/ticket-chat'
+import { loadTicketChat } from '@/lib/ticket-chat'
+import { CollaboratorResolutionActions } from '@/components/collaborator/resolution-actions'
+import { CopyTicketNumber } from '@/components/copy-ticket-number'
+import { RemoteSessionPanel } from '@/components/remote-session-panel'
+import type { RemoteSession } from '@/lib/types'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
@@ -28,27 +34,26 @@ export default async function CollaboratorTicketDetailPage({
 
   if (!ticket) notFound()
 
-  const { data: comments } = await supabase
-    .from('ticket_comments')
-    .select('*, author:profiles!author_id(full_name, role)')
-    .eq('ticket_id', id)
-    .eq('is_internal', false)
-    .order('created_at', { ascending: true })
-
-  const { data: approval } = await supabase
-    .from('ticket_approvals')
-    .select('*, approver:profiles!approver_id(full_name)')
-    .eq('ticket_id', id)
-    .maybeSingle()
-
-  type CommentRow = {
-    id: string
-    content: string
-    created_at: string
-    author: { full_name: string; role: string } | null
-  }
+  const [messages, { data: approval }, { data: remoteSessions }] = await Promise.all([
+    loadTicketChat(id, { includeInternal: false }),
+    supabase
+      .from('ticket_approvals')
+      .select('*, approver:profiles!approver_id(full_name)')
+      .eq('ticket_id', id)
+      .maybeSingle(),
+    supabase
+      .from('remote_sessions')
+      .select('*, proposer:profiles!proposed_by(full_name)')
+      .eq('ticket_id', id)
+      .order('scheduled_for', { ascending: false }),
+  ])
 
   const assignee = ticket.assignee as unknown as { full_name: string } | null
+  const formResponses = (ticket.form_responses ?? {}) as Record<string, string>
+  const sessions = (remoteSessions ?? []).map((row) => ({
+    ...row,
+    proposer: row.proposer as unknown as { full_name: string } | null,
+  })) as RemoteSession[]
 
   return (
     <div className="p-6 space-y-5 max-w-3xl">
@@ -59,7 +64,7 @@ export default async function CollaboratorTicketDetailPage({
 
       <div>
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[13px] text-zinc-600 font-mono">{ticket.ticket_number}</span>
+          <CopyTicketNumber value={ticket.ticket_number} />
           <Badge className={TICKET_STATUS_COLORS[ticket.status as keyof typeof TICKET_STATUS_COLORS]}>
             {TICKET_STATUS_LABELS[ticket.status as keyof typeof TICKET_STATUS_LABELS]}
           </Badge>
@@ -141,30 +146,24 @@ export default async function CollaboratorTicketDetailPage({
         </Card>
       )}
 
-      <Card>
-        <CardHeader><CardTitle>Atualizações ({comments?.length ?? 0})</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          {comments && comments.length > 0 ? (
-            <div className="divide-y divide-zinc-800/70">
-              {(comments as unknown as CommentRow[]).map((comment) => (
-                <div key={comment.id} className="px-5 py-4">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[13px] font-medium text-zinc-200">{comment.author?.full_name}</span>
-                    {comment.author?.role === 'analyst' && (
-                      <span className="text-[11px] bg-zinc-100 text-zinc-950 px-1.5 py-0.5 rounded font-medium">Suporte</span>
-                    )}
-                    <span className="text-xs text-zinc-600 ml-auto">{formatDate(comment.created_at)}</span>
-                  </div>
-                  <p className="text-[13px] text-zinc-300 whitespace-pre-wrap leading-relaxed">{comment.content}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="px-5 py-8 text-[13px] text-zinc-600 text-center">
-              Nenhuma atualização ainda. Nossa equipe irá entrar em contato em breve.
-            </div>
-          )}
-        </CardContent>
+      <CollaboratorResolutionActions ticketId={ticket.id} status={ticket.status} />
+
+      <RemoteSessionPanel
+        ticketId={ticket.id}
+        currentUserId={user!.id}
+        mode="collaborator"
+        sessions={sessions}
+        defaultAccessPayload={formResponses.anydesk ?? ''}
+        ticketFinalized={ticket.status === 'finalized'}
+      />
+
+      <Card className="overflow-hidden">
+        <TicketChat
+          ticketId={ticket.id}
+          messages={messages}
+          mode="collaborator"
+          closed={ticket.status === 'finalized'}
+        />
       </Card>
     </div>
   )

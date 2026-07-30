@@ -10,8 +10,8 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
-import { TICKET_PRIORITY_LABELS, cn } from '@/lib/utils'
-import type { TicketPriority } from '@/lib/types'
+import { TICKET_PRIORITY_LABELS, TICKET_AREA_LABELS, TICKET_TYPE_LABELS, cn } from '@/lib/utils'
+import type { TicketArea, TicketPriority, TicketType } from '@/lib/types'
 
 type Row = Record<string, unknown>
 
@@ -25,6 +25,28 @@ const emptyPolicy = {
   precedence: '30',
 }
 
+const emptyCatalogItem = {
+  id: '',
+  title: '',
+  slug: '',
+  description: '',
+  instructions: '',
+  keywords: '',
+  category: 'Outros',
+  area: '' as '' | TicketArea,
+  default_priority: 'medium' as TicketPriority,
+  default_type: 'request' as TicketType,
+  requires_approval: false,
+}
+
+const CATALOG_CATEGORIES = [
+  'Acessos e contas',
+  'Equipamentos',
+  'Software',
+  'Rede e infraestrutura',
+  'Outros',
+]
+
 export function ItsmSettings({
   policies, calendars, catalog, articles, categories,
 }: { policies: Row[]; calendars: Row[]; catalog: Row[]; articles: Row[]; categories: Row[] }) {
@@ -36,10 +58,22 @@ export function ItsmSettings({
     ...emptyPolicy,
     calendar_id: (calendars[0]?.id as string) ?? '',
   })
-  const [item, setItem] = useState({ title: '', slug: '', description: '', keywords: '', requires_approval: false })
-  const [article, setArticle] = useState({ title: '', slug: '', summary: '', content: '', keywords: '', category_id: '', published: true })
+  const [item, setItem] = useState(emptyCatalogItem)
+  const emptyArticle = {
+    id: '',
+    title: '',
+    slug: '',
+    summary: '',
+    content: '',
+    keywords: '',
+    category_id: '',
+    published: true,
+  }
+  const [article, setArticle] = useState(emptyArticle)
 
   const editing = Boolean(policy.id)
+  const editingCatalog = Boolean(item.id)
+  const editingArticle = Boolean(article.id)
 
   function startEdit(row: Row) {
     setPolicy({
@@ -81,34 +115,91 @@ export function ItsmSettings({
     router.refresh()
   }
 
-  async function createCatalog(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    const { error } = await supabase.from('service_catalog_items').insert({
-      ...item,
+  async function saveCatalog(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const payload = {
+      title: item.title,
+      slug: item.slug,
+      description: item.description,
+      instructions: item.instructions || null,
       keywords: item.keywords.split(',').map((v) => v.trim()).filter(Boolean),
-      is_published: true,
-      form_schema: [
-        { key: 'details', label: 'Detalhes da solicitação', type: 'textarea', required: true },
-      ],
-    })
+      category: item.category || 'Outros',
+      area: item.area || null,
+      default_priority: item.default_priority,
+      default_type: item.default_type,
+      requires_approval: item.requires_approval,
+      ...(editingCatalog
+        ? {}
+        : {
+            is_published: true,
+            form_schema: [
+              { key: 'details', label: 'Detalhes da solicitação', type: 'textarea', required: true },
+            ],
+          }),
+    }
+    const { error } = editingCatalog
+      ? await supabase.from('service_catalog_items').update(payload).eq('id', item.id)
+      : await supabase.from('service_catalog_items').insert(payload)
     setSaving(false)
-    if (error) return toast('Erro ao criar item do catálogo', 'error')
-    toast('Item publicado'); setItem({ title: '', slug: '', description: '', keywords: '', requires_approval: false }); router.refresh()
+    if (error) return toast(editingCatalog ? 'Erro ao atualizar item' : 'Erro ao criar item do catálogo', 'error')
+    toast(editingCatalog ? 'Item atualizado' : 'Item publicado')
+    setItem(emptyCatalogItem)
+    router.refresh()
   }
 
-  async function createArticle(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
+  function startEditCatalog(row: Row) {
+    setItem({
+      id: row.id as string,
+      title: (row.title as string) ?? '',
+      slug: (row.slug as string) ?? '',
+      description: (row.description as string) ?? '',
+      instructions: (row.instructions as string) ?? '',
+      keywords: Array.isArray(row.keywords) ? (row.keywords as string[]).join(', ') : '',
+      category: (row.category as string) || 'Outros',
+      area: (row.area as TicketArea) || '',
+      default_priority: ((row.default_priority as TicketPriority) ?? 'medium'),
+      default_type: ((row.default_type as TicketType) ?? 'request'),
+      requires_approval: Boolean(row.requires_approval),
+    })
+  }
+
+  async function saveArticle(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase.from('knowledge_articles').insert({
-      title: article.title, slug: article.slug, summary: article.summary, content: article.content,
+    const payload = {
+      title: article.title,
+      slug: article.slug,
+      summary: article.summary,
+      content: article.content,
       keywords: article.keywords.split(',').map((v) => v.trim()).filter(Boolean),
-      category_id: article.category_id || null, author_id: user?.id,
+      category_id: article.category_id || null,
       status: article.published ? 'published' : 'draft',
       published_at: article.published ? new Date().toISOString() : null,
-    })
+      ...(editingArticle ? {} : { author_id: user?.id }),
+    }
+    const { error } = editingArticle
+      ? await supabase.from('knowledge_articles').update(payload).eq('id', article.id)
+      : await supabase.from('knowledge_articles').insert(payload)
     setSaving(false)
-    if (error) return toast('Erro ao criar artigo', 'error')
-    toast('Artigo salvo'); setArticle({ title: '', slug: '', summary: '', content: '', keywords: '', category_id: '', published: true }); router.refresh()
+    if (error) return toast(editingArticle ? 'Erro ao atualizar artigo' : 'Erro ao criar artigo', 'error')
+    toast(editingArticle ? 'Artigo atualizado' : 'Artigo salvo')
+    setArticle(emptyArticle)
+    router.refresh()
+  }
+
+  function startEditArticle(row: Row) {
+    setArticle({
+      id: row.id as string,
+      title: (row.title as string) ?? '',
+      slug: (row.slug as string) ?? '',
+      summary: (row.summary as string) ?? '',
+      content: (row.content as string) ?? '',
+      keywords: Array.isArray(row.keywords) ? (row.keywords as string[]).join(', ') : '',
+      category_id: (row.category_id as string) ?? '',
+      published: row.status === 'published',
+    })
   }
 
   async function toggle(table: string, id: unknown, field: string, value: boolean) {
@@ -136,19 +227,105 @@ export function ItsmSettings({
       </div>
 
       {tab === 'catalog' && <div className="grid gap-5 xl:grid-cols-2">
-        <Card><CardHeader><CardTitle>Novo item do catálogo</CardTitle></CardHeader><CardContent>
-          <form onSubmit={createCatalog} className="space-y-3">
-            <Input label="Título" value={item.title} onChange={(e)=>setItem({...item,title:e.target.value})} required />
-            <Input label="Slug" placeholder="ex: acesso-vpn" value={item.slug} onChange={(e)=>setItem({...item,slug:e.target.value})} required />
-            <Textarea label="Descrição" value={item.description} onChange={(e)=>setItem({...item,description:e.target.value})} required />
-            <Input label="Palavras-chave" hint="Separadas por vírgula" value={item.keywords} onChange={(e)=>setItem({...item,keywords:e.target.value})} />
-            <label className="flex gap-2 text-[13px] text-zinc-300"><input type="checkbox" checked={item.requires_approval} onChange={(e)=>setItem({...item,requires_approval:e.target.checked})}/> Exige aprovação do gestor</label>
-            <Button loading={saving} type="submit">Publicar item</Button>
-          </form>
-        </CardContent></Card>
-        <Card><CardHeader><CardTitle>Itens publicados</CardTitle></CardHeader><CardContent className="space-y-2">
-          {catalog.map((row)=><div key={row.id as string} className="flex items-center justify-between border-b border-zinc-800/70 py-2.5"><div><p className="text-[13px] text-zinc-200">{row.title as string}</p><p className="text-xs text-zinc-600">{row.slug as string}</p></div><button onClick={()=>toggle('service_catalog_items',row.id,'is_published',!row.is_published)}><Badge className={row.is_published?'bg-emerald-500/10 text-emerald-400':'bg-zinc-800 text-zinc-500'}>{row.is_published?'Publicado':'Oculto'}</Badge></button></div>)}
-        </CardContent></Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingCatalog ? 'Editar item do catálogo' : 'Novo item do catálogo'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={saveCatalog} className="space-y-3">
+              <Input label="Título" value={item.title} onChange={(e)=>setItem({...item,title:e.target.value})} required />
+              <Input
+                label="Slug"
+                placeholder="ex: acesso-vpn"
+                value={item.slug}
+                onChange={(e)=>setItem({...item,slug:e.target.value})}
+                required
+                disabled={editingCatalog}
+                hint={editingCatalog ? 'O slug não pode ser alterado após a criação' : undefined}
+              />
+              <Textarea label="Descrição" value={item.description} onChange={(e)=>setItem({...item,description:e.target.value})} required />
+              <Textarea
+                label="Instruções (opcional)"
+                rows={3}
+                value={item.instructions}
+                onChange={(e)=>setItem({...item,instructions:e.target.value})}
+              />
+              <Input label="Palavras-chave" hint="Separadas por vírgula" value={item.keywords} onChange={(e)=>setItem({...item,keywords:e.target.value})} />
+              <Select
+                label="Categoria"
+                options={CATALOG_CATEGORIES.map((value) => ({ value, label: value }))}
+                value={item.category}
+                onChange={(e)=>setItem({...item,category:e.target.value})}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Select
+                  label="Tipo"
+                  options={Object.entries(TICKET_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+                  value={item.default_type}
+                  onChange={(e)=>setItem({...item,default_type:e.target.value as TicketType})}
+                />
+                <Select
+                  label="Prioridade padrão"
+                  options={Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => ({ value, label }))}
+                  value={item.default_priority}
+                  onChange={(e)=>setItem({...item,default_priority:e.target.value as TicketPriority})}
+                />
+              </div>
+              <Select
+                label="Área"
+                placeholder="Sem área"
+                options={Object.entries(TICKET_AREA_LABELS).map(([value, label]) => ({ value, label }))}
+                value={item.area}
+                onChange={(e)=>setItem({...item,area:e.target.value as TicketArea | ''})}
+              />
+              <label className="flex gap-2 text-[13px] text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={item.requires_approval}
+                  onChange={(e)=>setItem({...item,requires_approval:e.target.checked})}
+                />
+                Exige aprovação do gestor
+              </label>
+              <div className="flex gap-2">
+                <Button loading={saving} type="submit">
+                  {editingCatalog ? 'Salvar alterações' : 'Publicar item'}
+                </Button>
+                {editingCatalog && (
+                  <Button type="button" variant="secondary" onClick={() => setItem(emptyCatalogItem)}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Itens do catálogo</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {catalog.map((row) => (
+              <div key={row.id as string} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 py-2.5">
+                <button type="button" className="min-w-0 text-left" onClick={() => startEditCatalog(row)}>
+                  <p className="text-[13px] text-zinc-200 hover:text-zinc-50">{row.title as string}</p>
+                  <p className="text-xs text-zinc-600">
+                    {(row.category as string) || 'Outros'}
+                    {' · '}
+                    {row.slug as string}
+                  </p>
+                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button type="button" size="sm" variant="secondary" onClick={() => startEditCatalog(row)}>
+                    Editar
+                  </Button>
+                  <button onClick={() => toggle('service_catalog_items', row.id, 'is_published', !row.is_published)}>
+                    <Badge className={row.is_published ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}>
+                      {row.is_published ? 'Publicado' : 'Oculto'}
+                    </Badge>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>}
 
       {tab === 'sla' && <div className="grid gap-5 xl:grid-cols-2">
@@ -205,21 +382,79 @@ export function ItsmSettings({
       </div>}
 
       {tab === 'knowledge' && <div className="grid gap-5 xl:grid-cols-2">
-        <Card><CardHeader><CardTitle>Novo artigo</CardTitle></CardHeader><CardContent>
-          <form onSubmit={createArticle} className="space-y-3">
-            <Input label="Título" value={article.title} onChange={(e)=>setArticle({...article,title:e.target.value})} required />
-            <Input label="Slug" value={article.slug} onChange={(e)=>setArticle({...article,slug:e.target.value})} required />
-            <Input label="Resumo" value={article.summary} onChange={(e)=>setArticle({...article,summary:e.target.value})} required />
-            <Select label="Categoria" placeholder="Sem categoria" options={categories.map((c)=>({value:c.id as string,label:c.name as string}))} value={article.category_id} onChange={(e)=>setArticle({...article,category_id:e.target.value})}/>
-            <Textarea label="Conteúdo" rows={8} value={article.content} onChange={(e)=>setArticle({...article,content:e.target.value})} required />
-            <Input label="Palavras-chave" value={article.keywords} onChange={(e)=>setArticle({...article,keywords:e.target.value})}/>
-            <label className="flex gap-2 text-[13px] text-zinc-300"><input type="checkbox" checked={article.published} onChange={(e)=>setArticle({...article,published:e.target.checked})}/> Publicar agora</label>
-            <Button loading={saving} type="submit">Salvar artigo</Button>
-          </form>
-        </CardContent></Card>
-        <Card><CardHeader><CardTitle>Artigos</CardTitle></CardHeader><CardContent className="space-y-2">
-          {articles.map((row)=><div key={row.id as string} className="border-b border-zinc-800/70 py-2.5"><div className="flex justify-between gap-3"><div><p className="text-[13px] text-zinc-200">{row.title as string}</p><p className="text-xs text-zinc-600">{row.summary as string}</p></div><button onClick={()=>setArticleStatus(row.id,row.status==='published'?'draft':'published')}><Badge className={row.status==='published'?'bg-violet-500/10 text-violet-400':'bg-zinc-800 text-zinc-500'}>{row.status==='published'?'Publicado':'Rascunho'}</Badge></button></div></div>)}
-        </CardContent></Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingArticle ? 'Editar artigo' : 'Novo artigo'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={saveArticle} className="space-y-3">
+              <Input label="Título" value={article.title} onChange={(e)=>setArticle({...article,title:e.target.value})} required />
+              <Input
+                label="Slug"
+                value={article.slug}
+                onChange={(e)=>setArticle({...article,slug:e.target.value})}
+                required
+                disabled={editingArticle}
+                hint={editingArticle ? 'O slug não pode ser alterado após a criação' : undefined}
+              />
+              <Input label="Resumo" value={article.summary} onChange={(e)=>setArticle({...article,summary:e.target.value})} required />
+              <Select label="Categoria" placeholder="Sem categoria" options={categories.map((c)=>({value:c.id as string,label:c.name as string}))} value={article.category_id} onChange={(e)=>setArticle({...article,category_id:e.target.value})}/>
+              <Textarea label="Conteúdo" rows={8} value={article.content} onChange={(e)=>setArticle({...article,content:e.target.value})} required />
+              <Input label="Palavras-chave" value={article.keywords} onChange={(e)=>setArticle({...article,keywords:e.target.value})}/>
+              <label className="flex gap-2 text-[13px] text-zinc-300">
+                <input type="checkbox" checked={article.published} onChange={(e)=>setArticle({...article,published:e.target.checked})}/>
+                Publicar agora
+              </label>
+              <div className="flex gap-2">
+                <Button loading={saving} type="submit">
+                  {editingArticle ? 'Salvar alterações' : 'Salvar artigo'}
+                </Button>
+                {editingArticle && (
+                  <Button type="button" variant="secondary" onClick={() => setArticle(emptyArticle)}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Artigos</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {articles.map((row) => (
+              <div key={row.id as string} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 py-2.5">
+                <button type="button" className="min-w-0 text-left" onClick={() => startEditArticle(row)}>
+                  <p className="text-[13px] text-zinc-200 hover:text-zinc-50">{row.title as string}</p>
+                  <p className="text-xs text-zinc-600 line-clamp-1">{row.summary as string}</p>
+                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button type="button" size="sm" variant="secondary" onClick={() => startEditArticle(row)}>
+                    Editar
+                  </Button>
+                  {row.status === 'archived' ? (
+                    <button onClick={() => setArticleStatus(row.id, 'draft')}>
+                      <Badge className="bg-zinc-800 text-zinc-500">Arquivado</Badge>
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={() => setArticleStatus(row.id, row.status === 'published' ? 'draft' : 'published')}>
+                        <Badge className={row.status === 'published' ? 'bg-violet-500/10 text-violet-400' : 'bg-zinc-800 text-zinc-500'}>
+                          {row.status === 'published' ? 'Publicado' : 'Rascunho'}
+                        </Badge>
+                      </button>
+                      <button
+                        onClick={() => setArticleStatus(row.id, 'archived')}
+                        className="text-[11px] text-zinc-600 hover:text-zinc-300"
+                      >
+                        Arquivar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>}
     </div>
   )

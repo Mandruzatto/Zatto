@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bell, CheckCircle2, MessageSquare, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { cn, formatDate } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 const SEEN_KEY = 'zatto:notifications-seen'
 const REFRESH_MS = 60_000
@@ -20,10 +20,12 @@ type Notification = {
 }
 
 const KIND_META = {
-  assigned: { icon: UserCheck, label: 'Atribuído a você', color: 'text-sky-400' },
-  approved: { icon: CheckCircle2, label: 'Aprovado, pronto para atendimento', color: 'text-emerald-400' },
-  reply: { icon: MessageSquare, label: 'Nova resposta do solicitante', color: 'text-amber-400' },
+  assigned: { icon: UserCheck, label: 'Atribuído a você', color: 'text-sky-400', group: 'Atribuições' },
+  approved: { icon: CheckCircle2, label: 'Aprovado, pronto para atendimento', color: 'text-emerald-400', group: 'Aprovações' },
+  reply: { icon: MessageSquare, label: 'Nova resposta do solicitante', color: 'text-amber-400', group: 'Respostas' },
 } as const
+
+const GROUP_ORDER = ['Respostas', 'Atribuições', 'Aprovações'] as const
 
 function seenAt(): string {
   try {
@@ -31,6 +33,18 @@ function seenAt(): string {
   } catch {
     return new Date(Date.now() - 7 * 86_400_000).toISOString()
   }
+}
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return 'agora'
+  if (minutes < 60) return `há ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `há ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'há 1 dia'
+  return `há ${days} dias`
 }
 
 export function NotificationsBell({ userId }: { userId: string }) {
@@ -137,6 +151,20 @@ export function NotificationsBell({ userId }: { userId: string }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
+  const groups = useMemo(() => {
+    const map = new Map<string, Notification[]>()
+    for (const item of items) {
+      const group = KIND_META[item.kind].group
+      const list = map.get(group) ?? []
+      list.push(item)
+      map.set(group, list)
+    }
+    return GROUP_ORDER.filter((group) => map.has(group)).map((group) => ({
+      group,
+      items: map.get(group) ?? [],
+    }))
+  }, [items])
+
   function markAllRead() {
     try {
       localStorage.setItem(SEEN_KEY, new Date().toISOString())
@@ -177,27 +205,34 @@ export function NotificationsBell({ userId }: { userId: string }) {
             )}
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {items.map((item) => {
-              const meta = KIND_META[item.kind]
-              const Icon = meta.icon
-              return (
-                <Link
-                  key={item.id}
-                  href={`/tickets/${item.ticketId}`}
-                  onClick={() => setOpen(false)}
-                  className="flex gap-2.5 border-b border-zinc-800/50 px-3.5 py-3 last:border-0 hover:bg-zinc-900/60"
-                >
-                  <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', meta.color)} />
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-zinc-200">{item.title}</p>
-                    <p className="mt-0.5 text-[11px] text-zinc-600">
-                      <span className="font-mono">{item.ticketNumber}</span> · {meta.label}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-zinc-700">{formatDate(item.at)}</p>
-                  </div>
-                </Link>
-              )
-            })}
+            {groups.map(({ group, items: groupItems }) => (
+              <div key={group}>
+                <p className="sticky top-0 bg-zinc-950/95 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+                  {group}
+                </p>
+                {groupItems.map((item) => {
+                  const meta = KIND_META[item.kind]
+                  const Icon = meta.icon
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/tickets/${item.ticketId}`}
+                      onClick={() => setOpen(false)}
+                      className="flex gap-2.5 border-b border-zinc-800/50 px-3.5 py-3 last:border-0 hover:bg-zinc-900/60"
+                    >
+                      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', meta.color)} />
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-medium text-zinc-200">{item.title}</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-600">
+                          <span className="font-mono">{item.ticketNumber}</span> · {meta.label}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-zinc-700">{relativeTime(item.at)}</p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ))}
             {items.length === 0 && (
               <p className="px-3.5 py-8 text-center text-[12px] text-zinc-600">
                 Nenhuma novidade desde a última visita.

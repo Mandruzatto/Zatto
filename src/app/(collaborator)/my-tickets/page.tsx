@@ -8,6 +8,7 @@ import {
   formatDate
 } from '@/lib/utils'
 import { Plus } from 'lucide-react'
+import { CopyTicketNumber } from '@/components/copy-ticket-number'
 
 export default async function MyTicketsPage() {
   const supabase = await createClient()
@@ -19,8 +20,8 @@ export default async function MyTicketsPage() {
     .eq('requester_id', user!.id)
     .order('created_at', { ascending: false })
 
-  const open = tickets?.filter((t) => !['resolved', 'closed'].includes(t.status)).length ?? 0
-  const resolved = tickets?.filter((t) => ['resolved', 'closed'].includes(t.status)).length ?? 0
+  const open = tickets?.filter((t) => t.status !== 'finalized').length ?? 0
+  const finalized = tickets?.filter((t) => t.status === 'finalized').length ?? 0
 
   return (
     <div className="p-6 space-y-5 max-w-5xl">
@@ -28,7 +29,7 @@ export default async function MyTicketsPage() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Meus Chamados</h1>
           <p className="text-[13px] text-zinc-500 mt-0.5">
-            {open} abertos · {resolved} resolvidos
+            {open} abertos · {finalized} finalizados
           </p>
         </div>
         <Link
@@ -54,12 +55,19 @@ export default async function MyTicketsPage() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {tickets?.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-zinc-900/60 transition-colors">
+                <tr
+                  key={ticket.id}
+                  className={
+                    ticket.status === 'finalized'
+                      ? 'opacity-40 transition-colors hover:bg-zinc-900/60 hover:opacity-70'
+                      : 'transition-colors hover:bg-zinc-900/60'
+                  }
+                >
                   <td className="px-4 py-3">
                     <Link href={`/my-tickets/${ticket.id}`} className="group">
                       <p className="font-medium text-zinc-200 group-hover:text-zinc-50">{ticket.title}</p>
-                      <p className="text-xs text-zinc-600 mt-0.5 font-mono">{ticket.ticket_number}</p>
                     </Link>
+                    <CopyTicketNumber value={ticket.ticket_number} className="mt-0.5 text-xs" />
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={TICKET_PRIORITY_COLORS[ticket.priority as keyof typeof TICKET_PRIORITY_COLORS]}>

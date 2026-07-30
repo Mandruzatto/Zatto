@@ -23,6 +23,7 @@ export function UserEdit({ profile, managers }: { profile: Profile; managers: { 
     full_name: profile.full_name,
     job_title: profile.job_title ?? '',
     department: profile.department ?? '',
+    phone: profile.phone ?? '',
     manager_id: profile.manager_id ?? '',
     can_approve: profile.can_approve ?? false,
   })
@@ -31,6 +32,7 @@ export function UserEdit({ profile, managers }: { profile: Profile; managers: { 
     form.full_name !== profile.full_name ||
     form.job_title !== (profile.job_title ?? '') ||
     form.department !== (profile.department ?? '') ||
+    form.phone !== (profile.phone ?? '') ||
     form.manager_id !== (profile.manager_id ?? '') ||
     form.can_approve !== (profile.can_approve ?? false)
 
@@ -43,6 +45,7 @@ export function UserEdit({ profile, managers }: { profile: Profile; managers: { 
         full_name: form.full_name,
         job_title: form.job_title || null,
         department: form.department || null,
+        phone: form.phone || null,
         manager_id: form.manager_id || null,
         can_approve: form.can_approve,
       })
@@ -87,6 +90,13 @@ export function UserEdit({ profile, managers }: { profile: Profile; managers: { 
             onChange={(e) => setForm({ ...form, department: e.target.value })}
           />
         </div>
+        <Input
+          label="Telefone / WhatsApp"
+          placeholder="Ex: 11999998888"
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          hint="Usado pelo suporte para contato rápido no chamado."
+        />
         <Select
           label="Gestor padrão"
           options={managers.filter((manager) => manager.id !== profile.id).map((manager) => ({ value: manager.id, label: manager.full_name }))}

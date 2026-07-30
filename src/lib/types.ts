@@ -1,6 +1,6 @@
 export type UserRole = 'analyst' | 'collaborator'
 
-export type TicketStatus = 'open' | 'awaiting_approval' | 'in_progress' | 'pending' | 'scheduled' | 'resolved' | 'closed'
+export type TicketStatus = 'open' | 'awaiting_approval' | 'in_progress' | 'pending' | 'scheduled' | 'finalized'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
 export type TicketType = 'incident' | 'request'
 export type TicketArea = 'systems' | 'infrastructure'
@@ -12,6 +12,16 @@ export type WarrantyStatus = 'none' | 'active' | 'expiring' | 'expired'
 export type ApprovalStatus = 'not_required' | 'pending_assignment' | 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type ApprovalDecision = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type KnowledgeStatus = 'draft' | 'published' | 'archived'
+
+export type RemoteSessionStatus =
+  | 'proposed'
+  | 'confirmed'
+  | 'ready'
+  | 'in_progress'
+  | 'done'
+  | 'cancelled'
+
+export type RemoteAccessMethod = 'anydesk' | 'link' | 'other'
 
 export interface CatalogField {
   key: string
@@ -71,6 +81,7 @@ export interface Profile {
   role: UserRole
   department?: string
   job_title?: string | null
+  phone?: string | null
   manager_id?: string | null
   can_approve?: boolean
   avatar_url?: string
@@ -163,4 +174,37 @@ export interface TicketComment {
   is_internal: boolean
   created_at: string
   author?: Profile
+  attachments?: TicketCommentAttachment[]
+}
+
+export interface TicketCommentAttachment {
+  id: string
+  comment_id: string
+  ticket_id: string
+  uploaded_by?: string | null
+  file_name: string
+  file_path: string
+  file_size: number
+  mime_type: string
+  created_at: string
+  url?: string | null
+}
+
+export interface RemoteSession {
+  id: string
+  ticket_id: string
+  proposed_by: string
+  analyst_id?: string | null
+  scheduled_for: string
+  duration_minutes: number
+  status: RemoteSessionStatus
+  access_method: RemoteAccessMethod
+  access_payload?: string | null
+  consent_at?: string | null
+  started_at?: string | null
+  ended_at?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+  proposer?: { full_name: string } | null
 }

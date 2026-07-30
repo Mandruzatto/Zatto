@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import {
   Ticket as TicketIcon,
   Monitor,
-  Users,
   AlertCircle,
   ShieldAlert,
   Settings2,
@@ -14,6 +13,7 @@ import {
   MessageSquare,
   CheckCircle2,
   CalendarClock,
+  MonitorSmartphone,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -29,9 +29,11 @@ import {
   TICKET_STATUS_HEX,
   TICKET_PRIORITY_LABELS,
   TICKET_PRIORITY_COLORS,
+  REMOTE_SESSION_STATUS_LABELS,
+  REMOTE_SESSION_STATUS_COLORS,
   getScheduleState,
 } from '@/lib/utils'
-import type { Ticket, TicketStatus, Asset } from '@/lib/types'
+import type { Ticket, TicketStatus, Asset, RemoteSessionStatus } from '@/lib/types'
 
 export interface DashboardData {
   statusCounts: Record<TicketStatus, number>
@@ -66,12 +68,22 @@ export interface DashboardData {
     requester_name: string
     assignee_name: string | null
   }[]
+  remoteSessionsToday: {
+    id: string
+    ticket_id: string
+    ticket_number: string
+    title: string
+    scheduled_for: string
+    status: RemoteSessionStatus
+    requester_name: string
+  }[]
+  remoteReadyCount: number
   slaBreached: number
   slaAtRisk: number
 }
 
 type WidgetId =
-  | 'stats' | 'progress' | 'pie' | 'awaiting' | 'approved' | 'scheduled' | 'warranty' | 'recent' | 'critical'
+  | 'stats' | 'progress' | 'pie' | 'awaiting' | 'approved' | 'scheduled' | 'remote' | 'warranty' | 'recent' | 'critical'
 
 const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats', label: 'Indicadores' },
@@ -80,28 +92,30 @@ const WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'awaiting', label: 'Aguardando resposta' },
   { id: 'approved', label: 'Aprovados' },
   { id: 'scheduled', label: 'Agenda' },
+  { id: 'remote', label: 'Sessões remotas' },
   { id: 'warranty', label: 'Alertas de garantia' },
   { id: 'recent', label: 'Chamados recentes' },
   { id: 'critical', label: 'Chamados críticos' },
 ]
 
-const STORAGE_KEY = 'zatto:dashboard-widgets'
-const STATUS_FILTER_KEY = 'zatto:dashboard-status-filter'
+const STORAGE_KEY = 'zatto:dashboard-widgets-v2'
+const STATUS_FILTER_KEY = 'zatto:dashboard-status-filter-v2'
 
 const DEFAULT_VISIBILITY: Record<WidgetId, boolean> = {
   stats: true,
-  progress: true,
-  pie: true,
+  progress: false,
+  pie: false,
   awaiting: true,
   approved: true,
   scheduled: true,
-  warranty: true,
-  recent: true,
+  remote: true,
+  warranty: false,
+  recent: false,
   critical: true,
 }
 
 const ALL_STATUSES: TicketStatus[] = [
-  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'resolved', 'closed',
+  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'finalized',
 ]
 
 const DEFAULT_STATUS_FILTER: Record<TicketStatus, boolean> = {
@@ -110,8 +124,7 @@ const DEFAULT_STATUS_FILTER: Record<TicketStatus, boolean> = {
   in_progress: true,
   pending: true,
   scheduled: true,
-  resolved: true,
-  closed: true,
+  finalized: false,
 }
 
 function DonutChart({
@@ -269,8 +282,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
     { label: 'Chamados ativos', value: activeTickets, icon: TicketIcon, href: '/tickets' },
     { label: 'SLA vencido', value: data.slaBreached, icon: AlertCircle, href: '/tickets?sla=breached' },
     { label: 'SLA em risco', value: data.slaAtRisk, icon: ShieldAlert, href: '/tickets?sla=risk' },
-    { label: 'Ativos em uso', value: data.assetsInUse, icon: Monitor, href: '/assets' },
-    { label: 'Colaboradores', value: data.totalUsers, icon: Users, href: '/users' },
+    {
+      label: 'Aguardando resposta',
+      value: data.awaitingReply.length,
+      icon: MessageSquare,
+      href: '/tickets?awaiting=1',
+    },
+    {
+      label: 'Sessões hoje',
+      value: data.remoteSessionsToday.length,
+      icon: MonitorSmartphone,
+      href: '/tickets?remote=today',
+    },
   ]
 
   if (!hydrated) return <div className="p-6" />
@@ -280,7 +303,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Dashboard</h1>
-          <p className="text-[13px] text-zinc-500 mt-0.5">Visão geral do suporte</p>
+          <p className="text-[13px] text-zinc-500 mt-0.5">Filas que precisam da sua atenção</p>
         </div>
         <button
           onClick={() => setCustomizing(!customizing)}
@@ -447,13 +470,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
       {visibility.awaiting && data.awaitingReply.length > 0 && (
         <Card className="border-blue-500/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-blue-400" />
-              Aguardando sua resposta
-              <span className="text-xs font-normal text-zinc-600">
-                — a última mensagem foi do colaborador
-              </span>
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-blue-400" />
+                Aguardando sua resposta
+                <span className="text-xs font-normal text-zinc-600">
+                  — a última mensagem foi do colaborador
+                </span>
+              </CardTitle>
+              <Link href="/tickets?awaiting=1" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
+                Ver todos
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-zinc-800/70">
@@ -558,6 +586,58 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   </Link>
                 )
               })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {visibility.remote && (data.remoteSessionsToday.length > 0 || data.remoteReadyCount > 0) && (
+        <Card className="border-violet-500/20">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <MonitorSmartphone className="h-4 w-4 text-violet-400" />
+                Sessões remotas
+                <span className="text-xs font-normal text-zinc-600">
+                  — {data.remoteReadyCount > 0 ? `${data.remoteReadyCount} autorizada(s)` : 'agenda de hoje'}
+                </span>
+              </CardTitle>
+              <Link href="/tickets?remote=today" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
+                Ver todos
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-zinc-800/70">
+              {data.remoteSessionsToday.map((session) => (
+                <Link
+                  key={session.id}
+                  href={`/tickets/${session.ticket_id}`}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-900/60 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-zinc-200 truncate">{session.title}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      <span className="font-mono">{session.ticket_number}</span>
+                      {' · '}
+                      {session.requester_name}
+                      {' · '}
+                      {formatDate(session.scheduled_for)}
+                    </p>
+                  </div>
+                  <Badge className={REMOTE_SESSION_STATUS_COLORS[session.status]}>
+                    {REMOTE_SESSION_STATUS_LABELS[session.status]}
+                  </Badge>
+                </Link>
+              ))}
+              {data.remoteSessionsToday.length === 0 && data.remoteReadyCount > 0 && (
+                <Link
+                  href="/tickets?remote=ready"
+                  className="block px-5 py-4 text-[13px] text-emerald-400 hover:bg-zinc-900/60 transition-colors"
+                >
+                  {data.remoteReadyCount} sessão(ões) autorizada(s) — entrar agora
+                </Link>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
@@ -11,14 +12,53 @@ import {
   TICKET_STATUS_BAR_COLORS,
   TICKET_PRIORITY_COLORS,
   TICKET_PRIORITY_LABELS,
-  TICKET_TYPE_COLORS,
-  TICKET_TYPE_LABELS,
   formatDateShort,
   getSlaState,
   getScheduleState,
   cn,
 } from '@/lib/utils'
 import type { TicketPriority, TicketStatus, TicketType } from '@/lib/types'
+
+const HIDDEN_COLUMNS_KEY = 'zatto:board-hidden-columns'
+const HIDDEN_COLUMNS_EVENT = 'zatto:board-hidden-columns-change'
+const DEFAULT_HIDDEN: TicketStatus[] = ['finalized']
+const DEFAULT_HIDDEN_RAW = JSON.stringify(DEFAULT_HIDDEN)
+const VALID_STATUSES = new Set<TicketStatus>([
+  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'finalized',
+])
+
+function subscribeHiddenColumns(onStoreChange: () => void) {
+  const handler = () => onStoreChange()
+  window.addEventListener('storage', handler)
+  window.addEventListener(HIDDEN_COLUMNS_EVENT, handler)
+  return () => {
+    window.removeEventListener('storage', handler)
+    window.removeEventListener(HIDDEN_COLUMNS_EVENT, handler)
+  }
+}
+
+function getHiddenColumnsSnapshot() {
+  return localStorage.getItem(HIDDEN_COLUMNS_KEY) ?? DEFAULT_HIDDEN_RAW
+}
+
+function getHiddenColumnsServerSnapshot() {
+  return DEFAULT_HIDDEN_RAW
+}
+
+function parseHiddenColumns(raw: string): TicketStatus[] {
+  try {
+    const parsed = JSON.parse(raw) as TicketStatus[]
+    if (!Array.isArray(parsed)) return DEFAULT_HIDDEN
+    const filtered = parsed.filter((status): status is TicketStatus => VALID_STATUSES.has(status))
+    // Migrate old local preferences that still hide resolved/closed.
+    if (raw.includes('resolved') || raw.includes('closed')) {
+      if (!filtered.includes('finalized')) filtered.push('finalized')
+    }
+    return filtered
+  } catch {
+    return DEFAULT_HIDDEN
+  }
+}
 
 export type BoardTicket = {
   id: string
@@ -33,10 +73,11 @@ export type BoardTicket = {
   created_at: string
   requester_name: string
   assignee_name: string | null
+  awaiting_reply?: boolean
 }
 
 const COLUMNS: TicketStatus[] = [
-  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'resolved', 'closed',
+  'open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled', 'finalized',
 ]
 
 // Statuses that need extra data before saving must be set from the ticket page.
@@ -44,8 +85,7 @@ const GUARDED_STATUSES: Partial<Record<TicketStatus, string>> = {
   awaiting_approval: 'Aguardando Aprovação exige um aprovador',
   pending: 'Pendente exige o motivo da pendência',
   scheduled: 'Agendado exige data e hora',
-  resolved: 'Resolvido exige a resolução',
-  closed: 'Encerrado exige a resolução',
+  finalized: 'Finalizado exige a resolução',
 }
 
 function initialsOf(name: string) {
@@ -65,6 +105,24 @@ export function TicketsBoard({ tickets }: { tickets: BoardTicket[] }) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<TicketStatus | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
+  const hiddenRaw = useSyncExternalStore(
+    subscribeHiddenColumns,
+    getHiddenColumnsSnapshot,
+    getHiddenColumnsServerSnapshot
+  )
+  const hidden = parseHiddenColumns(hiddenRaw)
+
+  function toggleHidden(status: TicketStatus) {
+    const next = hidden.includes(status)
+      ? hidden.filter((value) => value !== status)
+      : [...hidden, status]
+    try {
+      localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify(next))
+      window.dispatchEvent(new Event(HIDDEN_COLUMNS_EVENT))
+    } catch {}
+  }
+
+  const visibleColumns = COLUMNS.filter((status) => !hidden.includes(status))
 
   async function moveTicket(ticketId: string, status: TicketStatus) {
     const ticket = tickets.find((row) => row.id === ticketId)
@@ -92,8 +150,32 @@ export function TicketsBoard({ tickets }: { tickets: BoardTicket[] }) {
   }
 
   return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-zinc-600">Colunas</span>
+        {COLUMNS.map((status) => {
+          const isHidden = hidden.includes(status)
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => toggleHidden(status)}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                isHidden
+                  ? 'border-zinc-800 text-zinc-600'
+                  : 'border-zinc-700 bg-zinc-900 text-zinc-300'
+              )}
+            >
+              {isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {TICKET_STATUS_LABELS[status]}
+            </button>
+          )
+        })}
+      </div>
+
     <div className="flex gap-3 overflow-x-auto pb-2">
-      {COLUMNS.map((status) => {
+      {visibleColumns.map((status) => {
         const columnTickets = tickets.filter((ticket) => ticket.status === status)
         const isTarget = dropTarget === status
         return (
@@ -150,7 +232,7 @@ export function TicketsBoard({ tickets }: { tickets: BoardTicket[] }) {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-[11px] text-zinc-600">{ticket.ticket_number}</span>
-                      {ticket.resolution_due_at && (
+                      {sla.hot && (
                         <Badge className={cn(sla.className, 'text-[10px]')}>{sla.label}</Badge>
                       )}
                     </div>
@@ -159,22 +241,20 @@ export function TicketsBoard({ tickets }: { tickets: BoardTicket[] }) {
                       {ticket.title}
                     </p>
 
+                    {ticket.awaiting_reply && (
+                      <p className="mt-1.5 text-[11px] font-medium text-sky-400/90">Aguardando resposta</p>
+                    )}
+
                     {ticket.status === 'scheduled' && ticket.scheduled_for && (
                       <p className="mt-1.5 text-[11px] text-violet-400/80">
                         {formatDateShort(ticket.scheduled_for)} · {getScheduleState(ticket.scheduled_for).label}
                       </p>
                     )}
 
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <div className="mt-2.5 flex items-center gap-2">
                       <Badge className={cn(TICKET_PRIORITY_COLORS[ticket.priority], 'text-[10px]')}>
                         {TICKET_PRIORITY_LABELS[ticket.priority]}
                       </Badge>
-                      <Badge className={cn(TICKET_TYPE_COLORS[ticket.type], 'text-[10px]')}>
-                        {TICKET_TYPE_LABELS[ticket.type]}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-2.5 flex items-center gap-2 border-t border-zinc-800/70 pt-2">
                       <span className="min-w-0 flex-1 truncate text-[11px] text-zinc-600">
                         {ticket.requester_name || 'Sem solicitante'}
                       </span>
@@ -203,6 +283,12 @@ export function TicketsBoard({ tickets }: { tickets: BoardTicket[] }) {
           </section>
         )
       })}
+      {visibleColumns.length === 0 && (
+        <p className="py-10 text-center text-[13px] text-zinc-600">
+          Todas as colunas estão ocultas. Reative alguma acima para ver o quadro.
+        </p>
+      )}
+    </div>
     </div>
   )
 }

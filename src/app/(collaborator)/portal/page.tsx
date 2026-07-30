@@ -38,7 +38,7 @@ export default async function PortalPage() {
       .from('tickets')
       .select('id', { count: 'exact', head: true })
       .eq('requester_id', user!.id)
-      .in('status', ['resolved', 'closed'])
+      .eq('status', 'finalized')
       .gte('updated_at', monthAgo),
     supabase
       .from('asset_assignments')

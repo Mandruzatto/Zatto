@@ -92,12 +92,13 @@ values
     'notebook-com-defeito',
     'Notebook ou desktop com defeito',
     'Seu computador parou de funcionar ou está com problema.',
-    'Descreva o defeito e informe o patrimônio, se souber.',
+    'Descreva o problema e, se possível, informe o AnyDesk e um horário em que você pode atender.',
     array['notebook','desktop','computador','quebrado','defeito','não liga','lento'],
     'Equipamentos', 'infrastructure', 'high', 'incident', false,
     '[
-      {"key":"patrimonio","label":"Patrimônio ou nome do equipamento","type":"text","required":false,"placeholder":"Ex: NB-0421"},
       {"key":"problema","label":"Qual o problema?","type":"select","required":true,"options":["Não liga","Muito lento","Tela quebrada","Superaquecendo","Bateria não carrega","Teclado ou touchpad","Outro"]},
+      {"key":"anydesk","label":"ID do AnyDesk","type":"text","required":false,"placeholder":"Ex: 1 234 567 890 — se conseguir abrir o computador"},
+      {"key":"disponibilidade","label":"Melhor horário para atendimento","type":"text","required":true,"placeholder":"Ex: hoje à tarde, ou 14h–16h"},
       {"key":"details","label":"Detalhes","type":"textarea","required":true,"placeholder":"Desde quando acontece e o que você já tentou"}
     ]'::jsonb,
     true
@@ -149,7 +150,8 @@ values
     array['troca','upgrade','memória','ssd','substituir','melhorar'],
     'Equipamentos', 'infrastructure', 'medium', 'request', true,
     '[
-      {"key":"patrimonio","label":"Patrimônio do equipamento atual","type":"text","required":true,"placeholder":"Ex: NB-0421"},
+      {"key":"equipamento","label":"Qual equipamento você usa hoje?","type":"text","required":true,"placeholder":"Ex: notebook Dell da minha mesa"},
+      {"key":"disponibilidade","label":"Melhor horário para conversarmos","type":"text","required":false,"placeholder":"Ex: manhãs, ou amanhã depois das 14h"},
       {"key":"motivo","label":"O que está limitando o seu trabalho?","type":"textarea","required":true,"placeholder":"Ex: trava ao abrir vários sistemas ao mesmo tempo"}
     ]'::jsonb,
     true
@@ -186,12 +188,13 @@ values
     'instalacao-software',
     'Instalação de software',
     'Peça a instalação de um programa no seu equipamento.',
-    'Este pedido passa pela aprovação do seu gestor.',
+    'Informe o software, um horário bom para instalação remota e o AnyDesk, se tiver.',
     array['software','instalar','programa','aplicativo','instalação'],
     'Software', 'systems', 'medium', 'request', true,
     '[
       {"key":"software","label":"Qual software?","type":"text","required":true,"placeholder":"Nome e versão, se souber"},
-      {"key":"patrimonio","label":"Patrimônio do equipamento","type":"text","required":false,"placeholder":"Ex: NB-0421"},
+      {"key":"anydesk","label":"ID do AnyDesk","type":"text","required":false,"placeholder":"Ex: 1 234 567 890"},
+      {"key":"disponibilidade","label":"Melhor horário para instalação remota","type":"text","required":true,"placeholder":"Ex: hoje entre 14h e 17h"},
       {"key":"justificativa","label":"Para que você vai usar?","type":"textarea","required":true,"placeholder":"Explique a atividade que depende do programa"}
     ]'::jsonb,
     true

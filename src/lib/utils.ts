@@ -1,6 +1,15 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { TicketPriority, TicketStatus, TicketType, TicketArea, AssetStatus, AssetType, WarrantyStatus } from './types'
+import {
+  TicketPriority,
+  TicketStatus,
+  TicketType,
+  TicketArea,
+  AssetStatus,
+  AssetType,
+  WarrantyStatus,
+  RemoteSessionStatus,
+} from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -65,8 +74,7 @@ export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   in_progress: 'Em Atendimento',
   pending: 'Pendente',
   scheduled: 'Agendado',
-  resolved: 'Resolvido',
-  closed: 'Encerrado',
+  finalized: 'Finalizado',
 }
 
 export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
@@ -75,8 +83,7 @@ export const TICKET_STATUS_COLORS: Record<TicketStatus, string> = {
   in_progress: 'bg-amber-500/10 text-amber-400',
   pending: 'bg-orange-500/10 text-orange-400',
   scheduled: 'bg-violet-500/10 text-violet-400',
-  resolved: 'bg-emerald-500/10 text-emerald-400',
-  closed: 'bg-zinc-500/10 text-zinc-400',
+  finalized: 'bg-zinc-500/10 text-zinc-400',
 }
 
 // Solid colors for progress bars / charts
@@ -86,8 +93,7 @@ export const TICKET_STATUS_BAR_COLORS: Record<TicketStatus, string> = {
   in_progress: 'bg-amber-500',
   pending: 'bg-orange-500',
   scheduled: 'bg-violet-500',
-  resolved: 'bg-emerald-500',
-  closed: 'bg-zinc-600',
+  finalized: 'bg-zinc-600',
 }
 
 // Hex colors for SVG charts
@@ -97,8 +103,11 @@ export const TICKET_STATUS_HEX: Record<TicketStatus, string> = {
   in_progress: '#f59e0b',
   pending: '#f97316',
   scheduled: '#8b5cf6',
-  resolved: '#10b981',
-  closed: '#52525b',
+  finalized: '#52525b',
+}
+
+export function isTicketFinalized(status: string | null | undefined) {
+  return status === 'finalized'
 }
 
 export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
@@ -185,13 +194,61 @@ export function getScheduleState(scheduledFor?: string | null) {
   return { label: `Em ${daysAhead} dias`, className: 'bg-zinc-500/10 text-zinc-400' }
 }
 
+export const REMOTE_SESSION_STATUS_LABELS: Record<RemoteSessionStatus, string> = {
+  proposed: 'Aguardando confirmação',
+  confirmed: 'Confirmada',
+  ready: 'Autorizada',
+  in_progress: 'Em andamento',
+  done: 'Encerrada',
+  cancelled: 'Cancelada',
+}
+
+export const REMOTE_SESSION_STATUS_COLORS: Record<RemoteSessionStatus, string> = {
+  proposed: 'bg-amber-500/10 text-amber-400',
+  confirmed: 'bg-sky-500/10 text-sky-400',
+  ready: 'bg-emerald-500/10 text-emerald-400',
+  in_progress: 'bg-violet-500/10 text-violet-400',
+  done: 'bg-zinc-500/10 text-zinc-400',
+  cancelled: 'bg-zinc-500/10 text-zinc-600',
+}
+
+/** Session window: 15 min before start until start + duration. */
+export function isRemoteSessionWindowOpen(
+  scheduledFor: string,
+  durationMinutes: number,
+  now = Date.now()
+) {
+  const start = new Date(scheduledFor).getTime()
+  if (Number.isNaN(start)) return false
+  const openFrom = start - 15 * 60_000
+  const openUntil = start + durationMinutes * 60_000
+  return now >= openFrom && now <= openUntil
+}
+
+export function canRevealRemoteAccess(session: {
+  status: RemoteSessionStatus
+  consent_at?: string | null
+  scheduled_for: string
+  duration_minutes: number
+}) {
+  if (!session.consent_at) return false
+  if (session.status !== 'ready' && session.status !== 'in_progress') return false
+  return isRemoteSessionWindowOpen(session.scheduled_for, session.duration_minutes) || session.status === 'in_progress'
+}
+
 export function getSlaState(dueAt?: string | null, completedAt?: string | null) {
-  if (!dueAt) return { label: 'Sem SLA', className: 'bg-zinc-500/10 text-zinc-500' }
+  if (!dueAt) {
+    return { label: 'Sem SLA', className: 'bg-zinc-500/10 text-zinc-500', hot: false }
+  }
   const due = new Date(dueAt).getTime()
   const reference = completedAt ? new Date(completedAt).getTime() : Date.now()
   const remaining = due - reference
-  if (remaining < 0) return { label: 'SLA vencido', className: 'bg-red-500/10 text-red-400' }
+  if (remaining < 0) {
+    return { label: 'SLA vencido', className: 'bg-red-500/10 text-red-400', hot: true }
+  }
   const hours = Math.ceil(remaining / 3_600_000)
-  if (hours <= 4) return { label: `${hours}h restantes`, className: 'bg-amber-500/10 text-amber-400' }
-  return { label: `${hours}h restantes`, className: 'bg-emerald-500/10 text-emerald-400' }
+  if (hours <= 4) {
+    return { label: `${hours}h restantes`, className: 'bg-amber-500/10 text-amber-400', hot: true }
+  }
+  return { label: `${hours}h restantes`, className: 'bg-emerald-500/10 text-emerald-400', hot: false }
 }
