@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TicketChat } from '@/components/ticket-chat'
 import { loadTicketChat } from '@/lib/ticket-chat'
 import { CollaboratorResolutionActions } from '@/components/collaborator/resolution-actions'
+import { SatisfactionSurvey } from '@/components/collaborator/satisfaction-survey'
 import { CopyTicketNumber } from '@/components/copy-ticket-number'
 import { RemoteSessionPanel } from '@/components/remote-session-panel'
-import type { RemoteSession } from '@/lib/types'
+import type { RemoteSession, TicketSatisfaction } from '@/lib/types'
 import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS,
   TICKET_PRIORITY_COLORS, TICKET_PRIORITY_LABELS,
@@ -34,7 +35,7 @@ export default async function CollaboratorTicketDetailPage({
 
   if (!ticket) notFound()
 
-  const [messages, { data: approval }, { data: remoteSessions }] = await Promise.all([
+  const [messages, { data: approval }, { data: remoteSessions }, { data: satisfaction }] = await Promise.all([
     loadTicketChat(id, { includeInternal: false }),
     supabase
       .from('ticket_approvals')
@@ -46,6 +47,11 @@ export default async function CollaboratorTicketDetailPage({
       .select('*, proposer:profiles!proposed_by(full_name)')
       .eq('ticket_id', id)
       .order('scheduled_for', { ascending: false }),
+    supabase
+      .from('ticket_satisfaction')
+      .select('*')
+      .eq('ticket_id', id)
+      .maybeSingle(),
   ])
 
   const assignee = ticket.assignee as unknown as { full_name: string } | null
@@ -147,6 +153,13 @@ export default async function CollaboratorTicketDetailPage({
       )}
 
       <CollaboratorResolutionActions ticketId={ticket.id} status={ticket.status} />
+
+      <SatisfactionSurvey
+        ticketId={ticket.id}
+        currentUserId={user!.id}
+        status={ticket.status}
+        satisfaction={(satisfaction as unknown as TicketSatisfaction | null) ?? null}
+      />
 
       <RemoteSessionPanel
         ticketId={ticket.id}

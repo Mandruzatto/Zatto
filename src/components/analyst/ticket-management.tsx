@@ -18,13 +18,12 @@ import {
   cn,
 } from '@/lib/utils'
 import type { Ticket, TicketStatus, TicketPriority, TicketType, TicketArea } from '@/lib/types'
-import { Trash2 } from 'lucide-react'
+import { RefreshCw, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import type { TicketApproval } from '@/lib/types'
 
 interface TicketManagementProps {
   ticket: Ticket
   analysts: { id: string; full_name: string }[]
-  approvers: { id: string; full_name: string }[]
   currentApproval?: TicketApproval | null
   currentUserId: string
 }
@@ -32,7 +31,6 @@ interface TicketManagementProps {
 export function TicketManagement({
   ticket,
   analysts,
-  approvers,
   currentApproval,
   currentUserId,
 }: TicketManagementProps) {
@@ -49,13 +47,12 @@ export function TicketManagement({
     assignee_id: ticket.assignee_id ?? '',
     resolution: ticket.resolution ?? '',
     pending_reason: ticket.pending_reason ?? '',
-    approver_id: currentApproval?.approver_id ?? '',
     scheduled_for: toDateTimeLocalValue(ticket.scheduled_for),
   })
 
   const needsResolution = form.status === 'finalized'
   const isPending = form.status === 'pending'
-  const needsApprover = form.status === 'awaiting_approval'
+  const needsApproval = form.status === 'awaiting_approval'
   const isScheduled = form.status === 'scheduled'
 
   const dirty =
@@ -66,19 +63,13 @@ export function TicketManagement({
     form.assignee_id !== (ticket.assignee_id ?? '') ||
     form.resolution !== (ticket.resolution ?? '') ||
     form.pending_reason !== (ticket.pending_reason ?? '') ||
-    (needsApprover && form.approver_id !== (currentApproval?.approver_id ?? '')) ||
     (isScheduled && form.scheduled_for !== toDateTimeLocalValue(ticket.scheduled_for))
 
   const missingResolution = needsResolution && !form.resolution.trim()
   const missingPendingReason = isPending && !form.pending_reason.trim()
-  const missingApprover = needsApprover && !form.approver_id
   const missingSchedule = isScheduled && !form.scheduled_for
 
   async function handleSave() {
-    if (missingApprover) {
-      toast('Selecione o aprovador para salvar', 'error')
-      return
-    }
     if (missingSchedule) {
       toast('Informe a data do agendamento', 'error')
       return
@@ -97,8 +88,9 @@ export function TicketManagement({
       scheduled_for: isScheduled ? new Date(form.scheduled_for).toISOString() : null,
     }
 
-    if (needsApprover) {
-      updates.approval_status = 'pending'
+    if (needsApproval) {
+      // O aprovador é definido no card de Aprovação; aqui só marcamos se já há alguém designado.
+      updates.approval_status = currentApproval?.approver_id ? 'pending' : 'pending_assignment'
     } else if (ticket.status === 'awaiting_approval' && form.status !== 'awaiting_approval') {
       updates.approval_status = form.status === 'finalized' ? 'cancelled' : ticket.approval_status
     }
@@ -115,29 +107,6 @@ export function TicketManagement({
       setSaving(false)
       toast('Erro ao salvar alterações', 'error')
       return
-    }
-
-    if (needsApprover) {
-      const approvalPayload = {
-        ticket_id: ticket.id,
-        approver_id: form.approver_id,
-        assigned_by: currentUserId,
-        decision: 'pending' as const,
-        comment: null,
-        decided_at: null,
-        requested_at: new Date().toISOString(),
-      }
-
-      const { error: approvalError } = currentApproval
-        ? await supabase.from('ticket_approvals').update(approvalPayload).eq('id', currentApproval.id)
-        : await supabase.from('ticket_approvals').insert(approvalPayload)
-
-      if (approvalError) {
-        setSaving(false)
-        toast('Chamado salvo, mas não foi possível definir o aprovador', 'error')
-        router.refresh()
-        return
-      }
     }
 
     setSaving(false)
@@ -220,17 +189,10 @@ export function TicketManagement({
             hint="Obrigatório ao marcar como Agendado"
           />
         )}
-        {needsApprover && (
-          <div className="space-y-1.5">
-            <Select
-              label="Aprovador"
-              options={approvers.map((profile) => ({ value: profile.id, label: profile.full_name }))}
-              placeholder="Selecionar aprovador..."
-              value={form.approver_id}
-              onChange={(e) => setForm({ ...form, approver_id: e.target.value })}
-            />
-            <p className="text-xs text-zinc-600">Obrigatório para salvar com status Aguardando aprovação</p>
-          </div>
+        {needsApproval && !currentApproval?.approver_id && (
+          <p className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-zinc-400">
+            Defina quem aprova no card <span className="text-zinc-200">Aprovação</span>, abaixo.
+          </p>
         )}
         <Select
           label="Prioridade"
@@ -256,7 +218,7 @@ export function TicketManagement({
         <Button
           onClick={handleSave}
           loading={saving}
-          disabled={!dirty || missingResolution || missingPendingReason || missingApprover || missingSchedule}
+          disabled={!dirty || missingResolution || missingPendingReason || missingSchedule}
           className="w-full"
           size="sm"
         >
@@ -287,53 +249,114 @@ export function TicketManagement({
 }
 
 export function ApprovalManagement({
+  ticketId,
   approval,
   approvers,
   currentUserId,
 }: {
-  approval: TicketApproval
+  ticketId: string
+  approval?: (TicketApproval & { approver?: { full_name?: string } | null }) | null
   approvers: { id: string; full_name: string }[]
   currentUserId: string
 }) {
   const router = useRouter()
   const supabase = createClient()
-  const [approverId, setApproverId] = useState(approval.approver_id ?? '')
+  const currentApproverId = approval?.approver_id ?? ''
+  const [approverId, setApproverId] = useState(currentApproverId)
+  const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const decided = approval?.decision === 'approved' || approval?.decision === 'rejected'
+  const approverName =
+    approvers.find((profile) => profile.id === currentApproverId)?.full_name ??
+    approval?.approver?.full_name ??
+    'aprovador'
 
   async function save() {
     if (!approverId) return
     setSaving(true)
-    const { error } = await supabase.from('ticket_approvals').update({
+
+    // Upsert cobre o caso em que ainda não existe linha de aprovação para o chamado.
+    const { error } = await supabase.from('ticket_approvals').upsert({
+      ticket_id: ticketId,
       approver_id: approverId,
       assigned_by: currentUserId,
       decision: 'pending',
       comment: null,
       decided_at: null,
       requested_at: new Date().toISOString(),
-    }).eq('id', approval.id)
+    }, { onConflict: 'ticket_id' })
+
+    if (error) {
+      setSaving(false)
+      return toast('Erro ao definir aprovador', 'error')
+    }
+
+    await supabase.from('tickets').update({ approval_status: 'pending' }).eq('id', ticketId)
+
     setSaving(false)
-    if (error) return toast('Erro ao definir aprovador', 'error')
-    toast('Aprovador atualizado')
+    setPicking(false)
+    toast(currentApproverId ? 'Aprovador alterado' : 'Aprovador definido')
     router.refresh()
   }
+
+  function cancel() {
+    setApproverId(currentApproverId)
+    setPicking(false)
+  }
+
+  // Decidido já aparece nos cards de "Aprovado"/"Rejeitado" da coluna principal.
+  if (decided) return null
 
   return (
     <Card className="border-cyan-500/20">
       <CardHeader><CardTitle>Aprovação</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <Select
-          label="Aprovador"
-          options={approvers.map((profile) => ({ value: profile.id, label: profile.full_name }))}
-          placeholder="Selecionar aprovador..."
-          value={approverId}
-          onChange={(e) => setApproverId(e.target.value)}
-        />
-        <Button size="sm" className="w-full" loading={saving} disabled={!approverId || approverId === approval.approver_id} onClick={save}>
-          {approval.approver_id ? 'Alterar aprovador' : 'Definir aprovador'}
-        </Button>
-        <p className="text-xs text-zinc-600">
-          Status: {approval.decision === 'approved' ? 'Aprovado' : approval.decision === 'rejected' ? 'Rejeitado' : approval.approver_id ? 'Aguardando decisão' : 'Sem aprovador'}
-        </p>
+        {picking ? (
+          <>
+            <Select
+              label="Aprovador"
+              options={approvers.map((profile) => ({ value: profile.id, label: profile.full_name }))}
+              placeholder="Selecionar colaborador..."
+              value={approverId}
+              onChange={(e) => setApproverId(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1"
+                loading={saving}
+                disabled={!approverId || approverId === currentApproverId}
+                onClick={save}
+              >
+                Salvar
+              </Button>
+              <Button size="sm" variant="secondary" onClick={cancel} disabled={saving}>
+                Cancelar
+              </Button>
+            </div>
+            <p className="text-xs text-zinc-600">Qualquer pessoa pode ser aprovadora deste chamado.</p>
+          </>
+        ) : currentApproverId ? (
+          <>
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-cyan-400/80" />
+              <p className="text-[13px] text-zinc-300">Aguardando {approverName}</p>
+            </div>
+            <Button size="sm" variant="secondary" className="w-full" onClick={() => setPicking(true)}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Trocar aprovador
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-[13px] text-zinc-400">Nenhum aprovador definido.</p>
+            <Button size="sm" className="w-full" onClick={() => setPicking(true)}>
+              <UserPlus className="h-3.5 w-3.5" />
+              Adicionar aprovador
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )

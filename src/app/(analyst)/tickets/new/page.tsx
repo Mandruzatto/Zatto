@@ -9,7 +9,7 @@ export default async function AnalystNewTicketPage() {
   const [{ data: requesters }, { data: analysts }, { data: catalog }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, full_name, email, role')
+      .select('id, full_name, email, role, manager_id')
       .eq('role', 'collaborator')
       .order('full_name'),
     supabase

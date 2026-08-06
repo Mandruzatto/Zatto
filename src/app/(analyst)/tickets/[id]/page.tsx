@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TicketManagement } from '@/components/analyst/ticket-management'
+import { TicketManagement, ApprovalManagement } from '@/components/analyst/ticket-management'
 import { TicketAssetsManager } from '@/components/analyst/ticket-assets'
 import { TicketChat } from '@/components/ticket-chat'
 import { loadTicketChat } from '@/lib/ticket-chat'
@@ -17,7 +17,7 @@ import {
   TICKET_AREA_COLORS, TICKET_AREA_LABELS,
   formatDate, getSlaState, getScheduleState
 } from '@/lib/utils'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Star } from 'lucide-react'
 import Link from 'next/link'
 import type { Asset, Profile, Ticket, TicketApproval, TicketArea } from '@/lib/types'
 
@@ -52,6 +52,7 @@ export default async function TicketDetailPage({
     { data: approvers },
     { data: statusEvents },
     { data: remoteSessions },
+    { data: satisfaction },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -75,6 +76,7 @@ export default async function TicketDetailPage({
       .select('*, proposer:profiles!proposed_by(full_name)')
       .eq('ticket_id', id)
       .order('scheduled_for', { ascending: false }),
+    supabase.from('ticket_satisfaction').select('*').eq('ticket_id', id).maybeSingle(),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -228,6 +230,30 @@ export default async function TicketDetailPage({
             </Card>
           )}
 
+          {satisfaction && (
+            <Card className="border-amber-500/20">
+              <CardHeader><CardTitle>Avaliação do solicitante</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <Star
+                        key={value}
+                        className={`h-4 w-4 ${
+                          value <= satisfaction.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[13px] text-zinc-400">{satisfaction.rating} de 5</span>
+                </div>
+                {satisfaction.comment && (
+                  <p className="text-[13px] text-zinc-300 whitespace-pre-wrap">{satisfaction.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="overflow-hidden">
             <TicketChat
               ticketId={ticket.id}
@@ -252,10 +278,18 @@ export default async function TicketDetailPage({
           <TicketManagement
             ticket={ticket as unknown as Ticket}
             analysts={analysts ?? []}
-            approvers={approvers ?? []}
             currentApproval={(approval as unknown as TicketApproval | null) ?? null}
             currentUserId={user!.id}
           />
+
+          {(ticket.status === 'awaiting_approval' || ticketApproval) && (
+            <ApprovalManagement
+              ticketId={ticket.id}
+              approval={ticketApproval}
+              approvers={approvers ?? []}
+              currentUserId={user!.id}
+            />
+          )}
 
           <RemoteSessionPanel
             ticketId={ticket.id}
@@ -265,20 +299,6 @@ export default async function TicketDetailPage({
             defaultAccessPayload={defaultAnydesk}
             ticketFinalized={ticket.status === 'finalized'}
           />
-
-          {ticketApproval?.approver_id && ticket.status === 'awaiting_approval' && (
-            <Card className="border-cyan-500/20">
-              <CardHeader><CardTitle>Fila de aprovação</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
-                <p className="text-[13px] text-zinc-300">
-                  Aguardando {ticketApproval.approver?.full_name ?? 'aprovador'}
-                </p>
-                <p className="text-xs text-zinc-600">
-                  Altere o aprovador na triagem se precisar redistribuir.
-                </p>
-              </CardContent>
-            </Card>
-          )}
 
           {ticket.resolution_due_at && (
             <Card>

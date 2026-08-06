@@ -19,7 +19,7 @@ import {
 } from '@/lib/utils'
 import type { ServiceCatalogItem, TicketArea, TicketPriority, TicketStatus, TicketType } from '@/lib/types'
 
-type ProfileOption = { id: string; full_name: string; email: string; role: string }
+type ProfileOption = { id: string; full_name: string; email: string; role: string; manager_id?: string | null }
 
 export function AnalystNewTicketForm({
   requesters,
@@ -55,6 +55,12 @@ export function AnalystNewTicketForm({
 
   const needsApprover = form.status === 'awaiting_approval' || Boolean(selectedCatalog?.requires_approval)
 
+  // Sem aprovador escolhido, o banco atribui o gestor do solicitante (quando existe);
+  // sem gestor, o chamado nasce aguardando alguém definir o aprovador na triagem.
+  const requesterHasManager = Boolean(
+    requesters.find((profile) => profile.id === form.requester_id)?.manager_id
+  )
+
   function applyCatalog(catalogItemId: string) {
     const item = catalog.find((row) => row.id === catalogItemId) ?? null
     setForm((prev) => ({
@@ -73,9 +79,14 @@ export function AnalystNewTicketForm({
     e.preventDefault()
     if (!form.requester_id) return toast('Selecione o solicitante', 'error')
     if (!form.title.trim() || !form.description.trim()) return toast('Preencha título e descrição', 'error')
-    if (needsApprover && !form.approver_id) return toast('Selecione o aprovador', 'error')
 
     setLoading(true)
+    const approvalStatus = !needsApprover
+      ? 'not_required'
+      : form.approver_id || requesterHasManager
+        ? 'pending'
+        : 'pending_assignment'
+
     const { data, error } = await supabase.from('tickets').insert({
       requester_id: form.requester_id,
       title: form.title.trim(),
@@ -86,7 +97,7 @@ export function AnalystNewTicketForm({
       status: form.status,
       assignee_id: form.assignee_id || null,
       catalog_item_id: form.catalog_item_id || null,
-      approval_status: needsApprover ? 'pending' : 'not_required',
+      approval_status: approvalStatus,
       form_responses: {},
     }).select('id, ticket_number').single()
 
@@ -95,7 +106,7 @@ export function AnalystNewTicketForm({
       return toast(error?.message || 'Não foi possível abrir o chamado', 'error')
     }
 
-    if (needsApprover) {
+    if (needsApprover && form.approver_id) {
       const { error: approvalError } = await supabase.from('ticket_approvals').upsert({
         ticket_id: data.id,
         approver_id: form.approver_id,
@@ -218,7 +229,7 @@ export function AnalystNewTicketForm({
               <div className="space-y-1.5">
                 <Select
                   label="Aprovador"
-                  placeholder="Selecionar aprovador..."
+                  placeholder="Definir depois..."
                   options={requesters
                     .concat(analysts)
                     .filter((profile, index, list) => list.findIndex((row) => row.id === profile.id) === index)
@@ -226,7 +237,11 @@ export function AnalystNewTicketForm({
                   value={form.approver_id}
                   onChange={(e) => setForm({ ...form, approver_id: e.target.value })}
                 />
-                <p className="text-xs text-zinc-600">Obrigatório quando o chamado exige aprovação.</p>
+                <p className="text-xs text-zinc-600">
+                  {requesterHasManager
+                    ? 'Opcional: em branco, o gestor do solicitante aprova. Dá para trocar na triagem.'
+                    : 'Opcional: em branco, o chamado fica aguardando definição do aprovador na triagem.'}
+                </p>
               </div>
             )}
 

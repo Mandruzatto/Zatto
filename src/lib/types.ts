@@ -208,3 +208,13 @@ export interface RemoteSession {
   updated_at: string
   proposer?: { full_name: string } | null
 }
+
+export interface TicketSatisfaction {
+  id: string
+  ticket_id: string
+  respondent_id: string
+  rating: number
+  comment?: string | null
+  created_at: string
+  updated_at: string
+}
