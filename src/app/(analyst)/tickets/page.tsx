@@ -9,7 +9,7 @@ import {
   TICKET_TYPE_LABELS,
   TICKET_AREA_LABELS,
   REMOTE_SESSION_STATUS_LABELS,
-  formatDateShort, getSlaState, getScheduleState, cn
+  formatDateShort, formatRelativeTime, getSlaState, getScheduleState, cn
 } from '@/lib/utils'
 import { TicketsFilters } from '@/components/analyst/tickets-filters'
 import { SortableHeader, type TicketSortKey } from '@/components/analyst/sortable-header'
@@ -74,6 +74,9 @@ function compareTickets(a: TicketRow, b: TicketRow, sort: TicketSortKey, ascendi
     }
     case 'assignee':
       result = (a.assignee?.full_name ?? '').localeCompare(b.assignee?.full_name ?? '', 'pt-BR')
+      break
+    case 'updated_at':
+      result = (a.updated_at ?? a.created_at).localeCompare(b.updated_at ?? b.created_at)
       break
     case 'created_at':
     default:
@@ -322,6 +325,9 @@ export default async function TicketsPage({
                 <Suspense fallback={<th className="px-4 py-2.5 text-left font-medium text-zinc-500">Agente</th>}>
                   <SortableHeader label="Agente" sortKey="assignee" />
                 </Suspense>
+                <Suspense fallback={<th className="px-4 py-2.5 text-left font-medium text-zinc-500">Atualizado</th>}>
+                  <SortableHeader label="Atualizado" sortKey="updated_at" />
+                </Suspense>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
@@ -403,12 +409,15 @@ export default async function TicketsPage({
                     <td className="px-4 py-3 text-zinc-400">
                       {ticket.assignee?.full_name ?? <span className="text-zinc-600 text-xs">Não atribuído</span>}
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500">
+                      {formatRelativeTime(ticket.updated_at ?? ticket.created_at)}
+                    </td>
                   </tr>
                 )
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center">
+                  <td colSpan={7} className="px-4 py-12 text-center">
                     <p className="text-[13px] font-medium text-zinc-400">{empty.title}</p>
                     <p className="mt-1 text-[13px] text-zinc-600">{empty.hint}</p>
                   </td>

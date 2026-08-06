@@ -14,6 +14,7 @@ export type TicketSortKey =
   | 'sla'
   | 'assignee'
   | 'created_at'
+  | 'updated_at'
 
 export function SortableHeader({
   label,

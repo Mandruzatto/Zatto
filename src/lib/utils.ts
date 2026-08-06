@@ -33,6 +33,22 @@ export function formatDateShort(date: string | Date): string {
   }).format(new Date(date))
 }
 
+export function formatRelativeTime(date: string | Date): string {
+  const diffMs = Date.now() - new Date(date).getTime()
+  const minutes = Math.round(diffMs / 60000)
+
+  if (minutes < 1) return 'agora'
+  if (minutes < 60) return `há ${minutes} min`
+
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `há ${hours}h`
+
+  const days = Math.round(hours / 24)
+  if (days < 7) return `há ${days}d`
+
+  return formatDateShort(date)
+}
+
 // ---------- Warranty ----------
 
 export const WARRANTY_EXPIRING_DAYS = 60
