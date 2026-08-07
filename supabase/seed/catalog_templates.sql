@@ -1,0 +1,16 @@
+-- Conteúdo dos pacotes de catálogo (core, base, microsoft, google).
+--
+-- ATENÇÃO — LACUNA CONHECIDA: as 36 linhas de modelo foram inseridas direto no
+-- banco atual e ainda NÃO estão versionadas aqui. Num ambiente novo, a tabela
+-- catalog_templates nasce vazia e todo cliente criado receberia catálogo vazio.
+--
+-- Antes do primeiro deploy, exportar do banco com:
+--
+--   select format(
+--     '(%L,%L,%L,%L,%L,%L,%L,%s,%L,%L,%L)',
+--     pack, slug, title, description, category, default_priority, default_type,
+--     requires_approval, keywords, form_schema, area
+--   )
+--   from public.catalog_templates order by pack, slug;
+--
+-- e colar o resultado num INSERT nesta tabela.

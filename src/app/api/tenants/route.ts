@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     name?: string
     slug?: string
     focalPointEmail?: string
+    ecosystem?: 'minimal' | 'microsoft' | 'google'
   }
 
   const name = body.name?.trim()
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
   const { data: tenant, error } = await supabase
     .from('tenants')
-    .insert({ name, slug })
+    .insert({ name, slug, ecosystem: body.ecosystem ?? 'minimal' })
     .select('id, name')
     .single()
 

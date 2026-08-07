@@ -27,6 +27,12 @@ export type TenantRow = {
   convites: PendingInvite[]
 }
 
+const ECOSYSTEMS = [
+  { value: 'microsoft', label: 'Microsoft 365', hint: 'Base geral + SharePoint, Teams, Outlook, licenças' },
+  { value: 'google', label: 'Google Workspace', hint: 'Base geral + Drive, Gmail, Meet, licenças' },
+  { value: 'minimal', label: 'Mínimo', hint: 'Só incidente e solicitação — o cliente monta do zero' },
+] as const
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -309,6 +315,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const [email, setEmail] = useState('')
+  const [ecosystem, setEcosystem] = useState<'minimal' | 'microsoft' | 'google'>('minimal')
   const [loading, setLoading] = useState(false)
   const [lastLink, setLastLink] = useState('')
 
@@ -327,7 +334,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
     const response = await fetch('/api/tenants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, slug, focalPointEmail: email }),
+      body: JSON.stringify({ name, slug, focalPointEmail: email, ecosystem }),
     })
     const payload = await response.json()
     setLoading(false)
@@ -341,6 +348,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
     setSlug('')
     setSlugTouched(false)
     setEmail('')
+    setEcosystem('minimal')
 
     if (payload.warning) toast(payload.warning, 'error')
     else if (payload.mode === 'dry-run') toast('Cliente criado. Sem e-mail configurado — copie o link.')
@@ -392,6 +400,33 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
                 hint="Recebe o link e vira a conta administradora do cliente."
                 required
               />
+
+              <div className="space-y-1.5">
+                <p className="text-[13px] font-medium text-zinc-400">Ambiente do cliente</p>
+                <div className="grid gap-1.5">
+                  {ECOSYSTEMS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setEcosystem(option.value)}
+                      className={cn(
+                        'rounded-lg border px-3 py-2 text-left transition-colors',
+                        ecosystem === option.value
+                          ? 'border-zinc-600 bg-zinc-900'
+                          : 'border-zinc-800 hover:border-zinc-700'
+                      )}
+                    >
+                      <span className="block text-[13px] font-medium text-zinc-200">
+                        {option.label}
+                      </span>
+                      <span className="block text-[11px] text-zinc-600">{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-600">
+                  Define o catálogo inicial. O cliente ajusta depois.
+                </p>
+              </div>
               <Button type="submit" size="sm" loading={loading}>
                 <Plus className="h-3.5 w-3.5" />
                 Criar cliente e convidar
