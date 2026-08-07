@@ -12,6 +12,7 @@ import {
   Zap,
   ChevronDown,
   Building2,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NavUser } from '@/components/nav-user'
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   },
   { href: '/assets', label: 'Inventário', icon: Monitor },
   { href: '/users', label: 'Colaboradores', icon: Users },
+  { href: '/reports', label: 'Relatórios', icon: BarChart3 },
   { href: '/settings', label: 'Configurações', icon: Settings },
 ]
 

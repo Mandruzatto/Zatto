@@ -177,6 +177,16 @@ export function TicketChat({
       if (metaError) toast(`Anexo ${file.name} enviado, mas não registrado`, 'error')
     }
 
+    // Resposta pública do analista avisa o solicitante, que não vive no sistema.
+    // A nota interna não avisa ninguém, e o caminho por e-mail já avisou acima.
+    if (mode === 'analyst' && !isInternal) {
+      await fetch(`/api/tickets/${ticketId}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'ticket_replied' }),
+      })
+    }
+
     setSending(false)
     toast(mode === 'analyst' && isInternal ? 'Nota interna salva' : 'Mensagem enviada')
     setContent('')

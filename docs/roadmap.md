@@ -2,7 +2,7 @@
 
 Documento vivo. Atualize ao final de cada sessão de trabalho.
 
-Última atualização: 2026-08-06
+Última atualização: 2026-08-07
 
 ## Princípios firmados
 
@@ -22,52 +22,70 @@ houver aprovação), **zero** para o analista.
 | CSAT | Nota 1–5 + comentário após finalizar, corrigível; analista vê no chamado |
 | Ordenação por atividade | Coluna "Atualizado" ordenável; trigger passou a contar qualquer comentário como atividade (antes resposta de colaborador não contava) |
 | Notificações in-app | Tabela `notifications` + 5 triggers, RLS por usuário, sino com realtime, sino também no portal do colaborador |
+| Multi-cliente | Tabela `tenants`, marca de dono nas 8 tabelas raiz, isolamento reescrito em 45 políticas e verificado com cliente fictício |
+| Convite e ativação | Criação de cliente com convite do ponto focal, ativação por link, conta master convidando o time. Token guardado como hash |
+| Envio de e-mail | Resend com três modos (seco, caixa de teste, normal). Entrega confirmada |
+| Composer no chamado | Destinatário por nome com cópia e cópia oculta, log na conversa |
+| Notificação por e-mail | Régua estreita: aprovador, e solicitante quando respondido ou finalizado. Analista não recebe |
+| Relatórios | `/reports` com SLA cumprido, tempo médio, satisfação e distribuições |
+| Sugestão de artigo | Casa palavra-chave do catálogo com a base antes de abrir chamado |
+| Endurecimento | Funções privilegiadas fechadas para visitante, gatilho tirado do alcance de RPC, `search_path` esvaziado |
 
 ## Pendente
 
-### Bloco 1 — E-mail no chamado
-Composer estendendo a conversa existente (responder o chamado **é** mandar e-mail, como
-no Freshservice): destinatários com Cc/Cco entre colaboradores cadastrados, rodapé
-automático com link do chamado, envio por rota server-side com verificação de analista,
-log entrando na conversa como mensagem pública.
+### E-mail de entrada — escrito, não exercitado
+`/api/email/inbound` recebe a resposta e devolve para o chamado: casa pelo número no
+assunto, corta citação e assinatura, e só aceita remetente cadastrado, dentro do
+cliente dele. A assinatura do webhook é obrigatória — sem `INBOUND_WEBHOOK_SECRET`
+a rota recusa tudo.
 
-- **Trava:** conta Resend + domínio verificado + `RESEND_API_KEY`
-- **Modo teste:** redireciona todo envio para um endereço único até o domínio verificar
+**Nunca rodou de verdade.** Receber e-mail exige domínio com registros MX apontando
+para o provedor. Tratar como rascunho até haver domínio.
 
-### Bloco 2 — Notificações por e-mail
-Dispara os eventos acima pelo transporte do Bloco 1, respeitando o princípio de escassez.
+### Domínio próprio
+Enquanto não existir, o remetente é `onboarding@resend.dev` e todo envio é
+redirecionado para `EMAIL_TEST_INBOX`. Registrar um `.com.br` (~R$ 40/ano) destrava
+envio real, remetente com a cara do produto e, depois, o e-mail de entrada.
 
-- **SLA em risco/vencido** ficou de fora: é baseado em tempo passando, não em ação de
-  alguém, então precisa de job agendado (pg_cron) em vez de trigger. Decisão pendente
+### Multi-cliente — o que falta
+Roteamento por subdomínio (`cliente.zatto.com`) e SSO por cliente, que depende de
+domínio e do plano pago do Supabase (SAML ~US$ 75/mês). Sem faturamento ainda.
 
-### Bloco 3 — Relatórios e deflection
-`/reports` com SLA compliance, tempo médio de resolução, volume por período, aging.
-Sugestão de artigo da base antes de abrir chamado.
+### Acabamento do composer
+Formatação, respostas prontas, rascunho salvo, "enviar e mudar status", anexo no
+e-mail (hoje o anexo fica só no portal).
 
-- **Trava real:** base vazia (ver "Conteúdo" abaixo)
+### Notificação de SLA
+SLA em risco ou vencido é baseado em tempo passando, não em alguém agir, então não
+sai de gatilho: precisa de agendamento. A coluna `notifications.email_sent_at` já
+existe como fila para quando houver agendador com chave de serviço.
 
-### Bloco 4 — E-mail de entrada
-Resposta de e-mail volta para o chamado; abrir chamado por e-mail. Sem isso, o
-`Responder Para` do composer não fecha o ciclo. **Trava:** DNS/MX + inbound no provedor.
+### Proteção contra senha vazada
+Continua desligada. É configuração do painel de Auth do Supabase, fora do alcance
+das ferramentas de banco — precisa ser ligada à mão em Authentication → Providers.
 
-### Bloco 5 — Acabamento do composer
-Rich text, respostas prontas, autosave de rascunho, "enviar e mudar status", anexos.
+### Avisos de segurança que permanecem, e por quê
+O verificador aponta funções `SECURITY DEFINER` executáveis por usuário autenticado.
+São os auxiliares das políticas de acesso: política é avaliada como o usuário, então
+ele precisa poder executá-las. Todas devolvem booleano ou o próprio cliente de quem
+pergunta — não expõem dado de terceiro. `invitation_preview` fica aberta para
+visitante de propósito: quem clica no link do convite ainda não tem conta.
 
-### Bloco 6 — Endurecimento
-Três funções `SECURITY DEFINER` expostas via RPC para `anon`
-(`is_ticket_approver`, `is_ticket_requester`, `log_ticket_status_change`) e proteção
-contra senha vazada desligada no Auth.
+### Planilha de custos e retorno
+Pedida para mais adiante: custo fixo, custo por cliente, ponto de equilíbrio e
+simulação de planos. Faz sentido depois do SSO, quando os custos reais estiverem
+conhecidos — antes disso os números seriam chutados.
 
-## Conteúdo — o gargalo que não é código
+## Conteúdo é de cada cliente
 
-Estado em 2026-08-06: **0 artigos** na base de conhecimento, **0 ativos** no inventário,
-**0 perfis com gestor** definido.
+Catálogo, base de conhecimento e inventário são preenchidos por cada cliente no
+ambiente dele, não pelo fornecedor. Uma base vazia no ambiente de demonstração
+não é lacuna do produto — é ambiente sem cliente dentro.
 
-Três funcionalidades prontas não entregam valor por causa disso: a busca do portal não
-acha nada, o deflection não teria o que sugerir, os relatórios não teriam amostra, e o
-auto-aprovador por gestor nunca dispara. Popular provavelmente vale mais que qualquer
-bloco acima. Ajuda possível: importador de CSV para inventário, rascunho de artigos a
-partir dos itens do catálogo.
+O que o produto precisa garantir é que preencher seja fácil: o catálogo já vem
+com 26 itens padrão que servem de ponto de partida. Vale considerar o mesmo para
+a base de conhecimento (artigos iniciais que o cliente adapta) e um importador de
+CSV para o inventário, que costuma vir de planilha.
 
 ## Fora do plano
 

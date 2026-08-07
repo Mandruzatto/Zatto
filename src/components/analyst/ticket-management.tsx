@@ -109,6 +109,14 @@ export function TicketManagement({
       return
     }
 
+    if (needsResolution && ticket.status !== 'finalized') {
+      await fetch(`/api/tickets/${ticket.id}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'ticket_finalized' }),
+      })
+    }
+
     setSaving(false)
     toast('Alterações salvas')
     router.refresh()
@@ -293,6 +301,13 @@ export function ApprovalManagement({
     }
 
     await supabase.from('tickets').update({ approval_status: 'pending' }).eq('id', ticketId)
+
+    // O aprovador quase nunca abre o sistema: sem este aviso o chamado trava.
+    await fetch(`/api/tickets/${ticketId}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'approval_requested' }),
+    })
 
     setSaving(false)
     setPicking(false)

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { CatalogTicketForm } from '@/components/collaborator/catalog-ticket-form'
 import { CatalogPicker } from '@/components/collaborator/catalog-picker'
+import { ArticleSuggestions } from '@/components/collaborator/article-suggestions'
 import type { ServiceCatalogItem } from '@/lib/types'
 
 export default async function NewTicketPage({
@@ -28,5 +29,11 @@ export default async function NewTicketPage({
     return <CatalogPicker items={items} />
   }
 
-  return <CatalogTicketForm item={item} />
+  return (
+    <div className="mx-auto max-w-2xl space-y-4 p-6">
+      {/* Deflection: se houver artigo que resolva, ele aparece antes do formulário. */}
+      <ArticleSuggestions keywords={item.keywords ?? []} title={item.title} />
+      <CatalogTicketForm item={item} />
+    </div>
+  )
 }
