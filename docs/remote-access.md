@@ -6,12 +6,54 @@ Documento vivo. Atualize ao final de cada sessão de trabalho sobre este tema, p
 
 | Item | Estado |
 |---|---|
-| Decisão de produto | Fechada — acesso remoto **próprio**, não bridge AnyDesk |
+| Decisão de produto | **Reaberta em 2026-08-06** — ver "Revisão da abordagem" |
 | Agendamento no chamado | Feito (MVP UI + tabela `remote_sessions`) |
 | Viewer WebRTC / agente / TURN / UAC | **Não iniciado** |
-| Próxima fase | Kickoff técnico (abaixo) |
+| Próxima fase | **Pausado** — foco no ITSM. Retomar decidindo motor (próprio × pronto) |
 
-Última atualização: 2026-07-29
+Última atualização: 2026-08-06
+
+> **Atenção:** o plano em `.cursor/plans/built-in_remote_access_2bdb4478.plan.md`, citado
+> mais abaixo, **não existe no repositório** — nunca foi commitado ou foi perdido.
+
+## Revisão da abordagem (2026-08-06)
+
+A decisão de construir o motor do zero foi questionada e **não deve ser retomada sem
+antes avaliar embutir um motor pronto**. O que motivou:
+
+**A estimativa de UAC estava errada por uma ordem de grandeza.** O roadmap abaixo prevê
+3–6 semanas para a Fase 3. O MeshCentral — projeto maduro, anos de desenvolvimento,
+agente Windows próprio rodando como serviço — ainda tem issues abertas exatamente aí:
+a sessão congela no prompt de UAC e o controle se perde no Secure Desktop
+([#7291](https://github.com/Ylianst/MeshCentral/issues/7291),
+[#3167](https://github.com/Ylianst/MeshCentral/issues/3167),
+[#1616](https://github.com/Ylianst/MeshCentral/issues/1616)).
+
+**O valor do zaTTo não está nos pixels.** Está no que já existe: sessão agendada dentro
+do chamado, consentimento, janela de autorização, auditoria, status no kanban. Capturar
+tela, codificar vídeo, injetar input e lidar com Secure Desktop é commodity resolvida.
+
+**Segurança:** um agente SYSTEM escrito do zero, sem auditoria externa, em todas as
+máquinas da empresa, é superfície de ataque para comprometimento de domínio. As
+alternativas também falham — mas falham em público, com CVE e correção.
+
+### Opções levantadas
+
+| Opção | UAC | Licença | Observação |
+|---|---|---|---|
+| **RustDesk auto-hospedado** | Elevação [documentada e funcionando](https://rustdesk.com/docs/en/client/windows/windows-portable-elevation/) | AGPL-3.0 ([comercial disponível](https://github.com/rustdesk/rustdesk/wiki/FAQ)) | Recomendado. AGPL contamina se o zaTTo virar produto vendido |
+| **MeshCentral** | Ponto fraco (issues acima) | Apache 2.0, livre p/ uso proprietário | Licença melhor, mas falha no requisito nº 1 |
+| **Guacamole + RDP** | Nativo do Windows | Apache 2.0 | Sem agente, mas RDP abre sessão separada; suporte assistido exige shadowing + Win Pro + domínio |
+| **Construir do zero** | — | — | Só se acesso remoto for o produto, não uma funcionalidade |
+
+### O que se mantém do plano original
+Tudo que é específico do zaTTo: modelo de sessão, token com janela válida, presença do
+agente, viewer embutido no chamado, kill switch, auditoria. Muda só o motor por trás do
+viewer.
+
+### Pergunta em aberto
+Acesso remoto é o produto ou uma funcionalidade do ITSM? A resposta define se vale
+reabrir a construção própria.
 
 ## Objetivo
 
@@ -116,6 +158,12 @@ Cole isto (ou aponte o arquivo):
 > Continuar o acesso remoto nativo do zaTTo. Ler `docs/remote-access.md` e o plano em `.cursor/plans/built-in_remote_access_2bdb4478.plan.md`. Não reinventar decisões fechadas. Atualizar `docs/remote-access.md` ao final do trabalho.
 
 ## Log de sessões
+
+### 2026-08-06
+- Abordagem reaberta: avaliar motor pronto antes de construir do zero (ver "Revisão da abordagem").
+- Evidência decisiva: MeshCentral, projeto maduro, ainda tem UAC/Secure Desktop quebrado.
+- RustDesk auto-hospedado é a alternativa mais forte; ressalva de licença AGPL.
+- Tema **pausado** — foco voltou para o ITSM (e-mail, relatórios, base de conhecimento).
 
 ### 2026-07-29
 - Produto: remoto próprio, não bridge AnyDesk.
