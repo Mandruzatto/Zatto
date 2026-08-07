@@ -63,7 +63,7 @@ export default async function TicketDetailPage({
     loadTicketChat(id, { includeInternal: true }),
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
     supabase.from('ticket_approvals').select('*, approver:profiles!approver_id(*)').eq('ticket_id', id).maybeSingle(),
-    supabase.from('profiles').select('id, full_name').order('full_name'),
+    supabase.from('profiles').select('id, full_name, email').order('full_name'),
     supabase
       .from('ticket_events')
       .select('id, from_status, to_status, created_at, actor:profiles!actor_id(full_name)')
@@ -260,6 +260,8 @@ export default async function TicketDetailPage({
               messages={messages}
               mode="analyst"
               closed={ticket.status === 'finalized'}
+              people={(approvers ?? []) as { id: string; full_name: string; email: string }[]}
+              requesterId={ticket.requester_id}
             />
           </Card>
 

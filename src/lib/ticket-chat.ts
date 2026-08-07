@@ -10,7 +10,7 @@ export async function loadTicketChat(
   let query = supabase
     .from('ticket_comments')
     .select(`
-      id, content, is_internal, created_at,
+      id, content, is_internal, created_at, email_recipients,
       author:profiles!author_id(full_name, role),
       attachments:ticket_comment_attachments(*)
     `)
@@ -52,6 +52,7 @@ export async function loadTicketChat(
       is_internal: row.is_internal,
       created_at: row.created_at,
       author: row.author as unknown as { full_name: string; role?: string } | null,
+      email_recipients: row.email_recipients,
       attachments,
     })
   }

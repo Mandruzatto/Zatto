@@ -8,6 +8,7 @@ import {
   Lock,
   MessageSquare,
   Paperclip,
+  Mail,
   Send,
   X,
 } from 'lucide-react'
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import { cn, formatDate } from '@/lib/utils'
+import { RecipientPicker, type Person } from '@/components/recipient-picker'
 import type { TicketCommentAttachment } from '@/lib/types'
 
 export type ChatMessage = {
@@ -25,6 +27,7 @@ export type ChatMessage = {
   created_at: string
   author: { full_name: string; role?: string } | null
   attachments: (TicketCommentAttachment & { url?: string | null })[]
+  email_recipients?: string[] | null
 }
 
 const MAX_FILES = 5
@@ -49,11 +52,16 @@ export function TicketChat({
   messages,
   mode,
   closed = false,
+  people = [],
+  requesterId,
 }: {
   ticketId: string
   messages: ChatMessage[]
   mode: 'analyst' | 'collaborator'
   closed?: boolean
+  /** Pessoas do cliente, para escolher destinatário por nome. Só usado pelo analista. */
+  people?: Person[]
+  requesterId?: string
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -62,8 +70,15 @@ export function TicketChat({
   const [isInternal, setIsInternal] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
+  const [byEmail, setByEmail] = useState(false)
+  const [to, setTo] = useState<string[]>(requesterId ? [requesterId] : [])
+  const [cc, setCc] = useState<string[]>([])
+  const [bcc, setBcc] = useState<string[]>([])
+  const [showBcc, setShowBcc] = useState(false)
 
-  const canSend = content.trim().length > 0 || files.length > 0
+  const canSend = byEmail
+    ? content.trim().length > 0 && to.length > 0
+    : content.trim().length > 0 || files.length > 0
   const title = mode === 'analyst' ? 'Conversa' : 'Atualizações'
 
   function addFiles(list: FileList | null) {
@@ -87,6 +102,32 @@ export function TicketChat({
     e.preventDefault()
     if (!canSend || closed) return
     setSending(true)
+
+    if (byEmail) {
+      const response = await fetch(`/api/tickets/${ticketId}/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content.trim(), to, cc, bcc }),
+      })
+      const payload = await response.json()
+      setSending(false)
+
+      if (!response.ok && response.status !== 207) {
+        return toast(payload.error || 'Não foi possível enviar o e-mail', 'error')
+      }
+
+      toast(
+        payload.redirectedTo
+          ? `Enviado para a caixa de teste (${payload.redirectedTo})`
+          : `E-mail enviado para ${payload.recipients?.join(', ')}`
+      )
+      setContent('')
+      setCc([])
+      setBcc([])
+      setByEmail(false)
+      router.refresh()
+      return
+    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -168,6 +209,15 @@ export function TicketChat({
                     Interno
                   </span>
                 )}
+                {message.email_recipients?.length ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-400"
+                    title={message.email_recipients.join(', ')}
+                  >
+                    <Mail className="h-3 w-3" />
+                    por e-mail para {message.email_recipients.join(', ')}
+                  </span>
+                ) : null}
                 {mode === 'collaborator' && message.author?.role === 'analyst' && (
                   <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-950">
                     Suporte
@@ -200,6 +250,47 @@ export function TicketChat({
 
       {!closed ? (
         <form onSubmit={handleSubmit} className="space-y-3 border-t border-zinc-800/70 px-5 py-4">
+          {byEmail && (
+            <div className="space-y-2.5 rounded-lg border border-sky-500/20 bg-sky-500/[0.03] p-3">
+              <RecipientPicker
+                label="Para"
+                people={people}
+                selected={to}
+                onChange={setTo}
+                exclude={[...cc, ...bcc]}
+              />
+              <RecipientPicker
+                label="Cópia"
+                people={people}
+                selected={cc}
+                onChange={setCc}
+                exclude={[...to, ...bcc]}
+                placeholder="Opcional"
+              />
+              {showBcc ? (
+                <RecipientPicker
+                  label="Cópia oculta"
+                  people={people}
+                  selected={bcc}
+                  onChange={setBcc}
+                  exclude={[...to, ...cc]}
+                  placeholder="Opcional"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowBcc(true)}
+                  className="text-[11px] text-zinc-500 hover:text-zinc-300"
+                >
+                  Adicionar cópia oculta
+                </button>
+              )}
+              <p className="text-[11px] text-zinc-600">
+                O link do chamado entra no rodapé automaticamente. A resposta por e-mail
+                ainda não volta para cá — o rodapé pede para responder pelo portal.
+              </p>
+            </div>
+          )}
           <Textarea
             placeholder={
               mode === 'analyst'
@@ -275,6 +366,21 @@ export function TicketChat({
                 >
                   {isInternal ? <Lock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
                   {isInternal ? 'Nota interna' : 'Resposta pública'}
+                </button>
+              )}
+              {mode === 'analyst' && !isInternal && people.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setByEmail(!byEmail)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    byEmail
+                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-400'
+                      : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                  )}
+                >
+                  <Mail className="h-3 w-3" />
+                  {byEmail ? 'Enviando por e-mail' : 'Enviar por e-mail'}
                 </button>
               )}
             </div>
