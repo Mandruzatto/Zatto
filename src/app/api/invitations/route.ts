@@ -1,14 +1,7 @@
-import { createHash, randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { emailMode, sendEmail } from '@/lib/email'
-
-const INVITE_TTL_DAYS = 7
-
-/** O banco guarda só o hash; o token em claro existe apenas no link enviado. */
-function hashToken(token: string) {
-  return createHash('sha256').update(token).digest('hex')
-}
+import { emailMode } from '@/lib/email'
+import { createInvitation } from '@/lib/invitations'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -44,52 +37,28 @@ export async function POST(request: Request) {
     ? body.tenantId || profile.tenant_id
     : profile.tenant_id
 
-  const token = randomBytes(32).toString('base64url')
-
-  const { data: invitation, error } = await supabase
-    .from('invitations')
-    .insert({
-      tenant_id: tenantId,
-      email,
-      role: body.role ?? 'collaborator',
-      grants_tenant_admin: body.grantsTenantAdmin ?? false,
-      token_hash: hashToken(token),
-      invited_by: user.id,
-      expires_at: new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000).toISOString(),
-    })
-    .select('id, tenant:tenants!tenant_id(name)')
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name')
+    .eq('id', tenantId)
     .single()
 
-  if (error) {
-    const duplicate = error.code === '23505'
-    return NextResponse.json(
-      { error: duplicate ? 'Já existe um convite pendente para este e-mail' : error.message },
-      { status: duplicate ? 409 : 400 }
-    )
-  }
-
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin
-  const link = `${origin}/invite/${token}`
-  const tenantName = (invitation.tenant as unknown as { name: string } | null)?.name ?? 'zaTTo'
-
-  const result = await sendEmail({
-    to: [email],
-    subject: `Seu acesso ao zaTTo — ${tenantName}`,
-    text: [
-      `Você foi convidado por ${profile.full_name} para acessar o zaTTo (${tenantName}).`,
-      '',
-      'Para ativar sua conta, acesse:',
-      link,
-      '',
-      `O link expira em ${INVITE_TTL_DAYS} dias.`,
-    ].join('\n'),
+  const result = await createInvitation({
+    supabase,
+    tenantId,
+    tenantName: tenant?.name ?? 'zaTTo',
+    email,
+    role: body.role ?? 'collaborator',
+    grantsTenantAdmin: body.grantsTenantAdmin ?? false,
+    invitedBy: user.id,
+    invitedByName: profile.full_name,
+    origin: process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin,
   })
 
-  if (result.status === 'failed') {
-    // O convite existe; só a entrega falhou. O link volta para reenvio manual.
+  if (!result.ok) {
     return NextResponse.json(
-      { warning: `Convite criado, mas o e-mail falhou: ${result.error}`, link },
-      { status: 207 }
+      { error: result.error, link: result.link },
+      { status: result.duplicate ? 409 : result.link ? 207 : 400 }
     )
   }
 
@@ -97,7 +66,7 @@ export async function POST(request: Request) {
     ok: true,
     mode: emailMode(),
     // Quem criou o convite pode copiar o link — útil no modo seco e para reenvio.
-    link,
-    redirectedTo: result.status === 'sent' ? result.redirectedTo : undefined,
+    link: result.link,
+    redirectedTo: result.redirectedTo,
   })
 }

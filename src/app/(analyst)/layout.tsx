@@ -21,7 +21,7 @@ export default async function AnalystLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name, email')
+    .select('role, full_name, email, is_platform_admin')
     .eq('id', user.id)
     .single()
 
@@ -31,6 +31,7 @@ export default async function AnalystLayout({
     <div className="flex h-screen bg-zinc-950">
       <SessionTimeout />
       <AnalystSidebar
+        isPlatformAdmin={Boolean(profile.is_platform_admin)}
         user={{
           fullName: profile.full_name || user.email || 'Analista',
           email: profile.email || user.email || '',

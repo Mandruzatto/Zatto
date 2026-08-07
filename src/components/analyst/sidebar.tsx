@@ -11,6 +11,7 @@ import {
   Settings,
   Zap,
   ChevronDown,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NavUser } from '@/components/nav-user'
@@ -40,11 +41,18 @@ const navItems: NavItem[] = [
 
 export function AnalystSidebar({
   user,
+  isPlatformAdmin = false,
 }: {
   user: { fullName: string; email: string }
+  isPlatformAdmin?: boolean
 }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+
+  // Clientes é tela do fornecedor, não do cliente.
+  const items: NavItem[] = isPlatformAdmin
+    ? [...navItems, { href: '/tenants', label: 'Clientes', icon: Building2 }]
+    : navItems
 
   function isChildActive(href: string) {
     if (href === '/tickets/board') return pathname === '/tickets/board'
@@ -64,7 +72,7 @@ export function AnalystSidebar({
       </div>
 
       <nav className="flex-1 px-2.5 pt-2 space-y-0.5">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
 
