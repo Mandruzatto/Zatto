@@ -29,7 +29,11 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth/callback') && pathname !== '/') {
+  // /invite é público de propósito: quem ativa a conta ainda não tem login.
+  const publicPaths = ['/login', '/auth/callback', '/invite']
+  const isPublic = pathname === '/' || publicPaths.some((path) => pathname.startsWith(path))
+
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

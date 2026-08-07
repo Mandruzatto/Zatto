@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ListSearch } from '@/components/ui/list-search'
+import { InvitePanel } from '@/components/analyst/invite-panel'
 import { Monitor, Ticket, Plus } from 'lucide-react'
 import Link from 'next/link'
 
@@ -12,6 +13,19 @@ export default async function UsersPage({
 }) {
   const supabase = await createClient()
   const { q } = await searchParams
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('is_platform_admin, is_tenant_admin')
+    .eq('id', user!.id)
+    .single()
+
+  const canInvite = Boolean(me?.is_platform_admin || me?.is_tenant_admin)
+  // Só o admin da plataforma enxerga outros clientes (RLS garante isso).
+  const { data: tenants } = me?.is_platform_admin
+    ? await supabase.from('tenants').select('id, name').order('name')
+    : { data: [] }
 
   const { data: allUsers } = await supabase
     .from('profiles')
@@ -56,6 +70,12 @@ export default async function UsersPage({
           <p className="text-[13px] text-zinc-500 mt-0.5">{users?.length ?? 0} colaboradores</p>
         </div>
         <div className="flex items-center gap-3">
+          {canInvite && (
+            <InvitePanel
+              isPlatformAdmin={Boolean(me?.is_platform_admin)}
+              tenants={tenants ?? []}
+            />
+          )}
           <ListSearch placeholder="Buscar por nome, e-mail, cargo..." />
           <Link
             href="/users/new"
