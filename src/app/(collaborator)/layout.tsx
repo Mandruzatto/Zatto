@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollaboratorSidebar } from '@/components/collaborator/sidebar'
 import { SessionTimeout } from '@/components/session-timeout'
+import { SuspendedTenant } from '@/components/suspended-tenant'
 
 const ACTIVE_STATUSES = ['open', 'awaiting_approval', 'in_progress', 'pending', 'scheduled']
 
@@ -18,7 +19,7 @@ export default async function CollaboratorLayout({
   const [{ data: profile }, { count }, { data: activeTickets }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('can_approve, full_name, email')
+      .select('can_approve, full_name, email, tenant:tenants!tenant_id(name, is_active)')
       .eq('id', user.id)
       .single(),
     supabase
@@ -49,6 +50,9 @@ export default async function CollaboratorLayout({
       return author !== undefined && author !== user.id
     }).length
   }
+
+  const tenant = profile?.tenant as unknown as { name: string; is_active: boolean } | null
+  if (tenant && !tenant.is_active) return <SuspendedTenant name={tenant.name} />
 
   const canApprove = (profile?.can_approve ?? false) || (count ?? 0) > 0
 

@@ -8,6 +8,7 @@ import { HeaderStats } from '@/components/analyst/header-stats'
 import { NotificationsBell } from '@/components/notifications-bell'
 import { UserMenu } from '@/components/analyst/user-menu'
 import { SessionTimeout } from '@/components/session-timeout'
+import { SuspendedTenant } from '@/components/suspended-tenant'
 
 export default async function AnalystLayout({
   children,
@@ -21,11 +22,14 @@ export default async function AnalystLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name, email, is_platform_admin')
+    .select('role, full_name, email, is_platform_admin, tenant:tenants!tenant_id(name, is_active)')
     .eq('id', user.id)
     .single()
 
   if (profile?.role !== 'analyst') redirect('/my-tickets')
+
+  const tenant = profile.tenant as unknown as { name: string; is_active: boolean } | null
+  if (tenant && !tenant.is_active) return <SuspendedTenant name={tenant.name} />
 
   return (
     <div className="flex h-screen bg-zinc-950">
