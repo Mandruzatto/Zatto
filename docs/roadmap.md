@@ -33,6 +33,27 @@ houver aprovação), **zero** para o analista.
 
 ## Pendente
 
+### Publicar a aplicação — hoje é o que mais bloqueia
+O zaTTo só roda em `localhost`. Nenhum cliente alcança, e o convite sai com link
+`http://localhost:3000/invite/...`, que só abre na máquina de quem gerou. O primeiro
+convite real foi ativado assim, pelo próprio fornecedor.
+
+Publicar (Vercel serve, plano gratuito) e definir `NEXT_PUBLIC_SITE_URL` apontando
+para o endereço publicado resolve as duas coisas. Sem isso, nada do multi-cliente
+sai do laboratório.
+
+### Desligar a confirmação de e-mail do Supabase
+Está ligada, e trava **todo cliente novo**: o Supabase cria a conta, guarda a senha
+e recusa o login até o endereço ser confirmado. Como o convite já prova que o
+endereço é válido, a confirmação é redundante — e com dois e-mails para entrar, o
+atrito é gratuito num produto que vai ser vendido.
+
+Aconteceu na prática com o primeiro cliente (`teste@teste.com`), que ficou sem
+conseguir entrar até a conta ser confirmada à mão no banco.
+
+Painel → Authentication → Sign In / Providers → Email → desligar **Confirm email**.
+Fora do alcance das ferramentas de banco.
+
 ### E-mail de entrada — escrito, não exercitado
 `/api/email/inbound` recebe a resposta e devolve para o chamado: casa pelo número no
 assunto, corta citação e assinatura, e só aceita remetente cadastrado, dentro do
