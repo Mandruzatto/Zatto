@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { AnalystSidebar } from '@/components/analyst/sidebar'
 import { GlobalSearch } from '@/components/analyst/global-search'
 import { HeaderStats } from '@/components/analyst/header-stats'
-import { NotificationsBell } from '@/components/analyst/notifications-bell'
+import { NotificationsBell } from '@/components/notifications-bell'
 import { UserMenu } from '@/components/analyst/user-menu'
 import { SessionTimeout } from '@/components/session-timeout'
 
@@ -41,7 +41,7 @@ export default async function AnalystLayout({
           <GlobalSearch />
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <HeaderStats userId={user.id} />
-            <NotificationsBell userId={user.id} />
+            <NotificationsBell userId={user.id} mode="analyst" />
             <Link
               href="/tickets/new"
               className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[13px] font-medium text-zinc-950 transition-colors hover:bg-zinc-300"

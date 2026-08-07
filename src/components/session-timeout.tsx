@@ -15,6 +15,10 @@ export function SessionTimeout({ timeoutMinutes = 30 }: { timeoutMinutes?: numbe
   const router = useRouter()
 
   useEffect(() => {
+    // Logout por inatividade é proteção de produção. Em desenvolvimento só derruba
+    // a sessão no meio do trabalho, então fica desligado localmente.
+    if (process.env.NODE_ENV === 'development') return
+
     const supabase = createClient()
     const limitMs = timeoutMinutes * 60_000
     let lastWrite = 0

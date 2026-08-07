@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { NavUser } from '@/components/nav-user'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { NotificationsBell } from '@/components/notifications-bell'
 
 const navItems = [
   { href: '/portal', label: 'Início', icon: Home },
@@ -28,11 +29,13 @@ export function CollaboratorSidebar({
   canApprove = false,
   pendingApprovals = 0,
   waitingOnMe = 0,
+  userId,
   user,
 }: {
   canApprove?: boolean
   pendingApprovals?: number
   waitingOnMe?: number
+  userId: string
   user: { fullName: string; email: string }
 }) {
   const pathname = usePathname()
@@ -58,6 +61,9 @@ export function CollaboratorSidebar({
         <div className="flex items-baseline gap-1.5">
           <span className="text-sm font-semibold tracking-tight text-zinc-100">zaTTo</span>
           <span className="text-[11px] text-zinc-600 font-medium">portal</span>
+        </div>
+        <div className="ml-auto">
+          <NotificationsBell userId={userId} mode="collaborator" align="left" />
         </div>
       </div>
 

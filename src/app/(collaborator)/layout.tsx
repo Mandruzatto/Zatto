@@ -59,6 +59,7 @@ export default async function CollaboratorLayout({
         canApprove={canApprove}
         pendingApprovals={count ?? 0}
         waitingOnMe={waitingOnMe}
+        userId={user.id}
         user={{
           fullName: profile?.full_name || user.email || 'Usuário',
           email: profile?.email || user.email || '',

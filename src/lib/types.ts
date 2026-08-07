@@ -209,6 +209,13 @@ export interface RemoteSession {
   proposer?: { full_name: string } | null
 }
 
+export type NotificationKind =
+  | 'ticket_assigned'
+  | 'ticket_replied'
+  | 'ticket_finalized'
+  | 'approval_requested'
+  | 'approval_decided'
+
 export interface TicketSatisfaction {
   id: string
   ticket_id: string
