@@ -66,11 +66,10 @@ export default async function TicketDetailPage({
     supabase.from('profiles').select('id, full_name, email').order('full_name'),
     supabase
       .from('ticket_events')
-      .select('id, from_status, to_status, created_at, actor:profiles!actor_id(full_name)')
+      .select('id, event_type, from_status, to_status, metadata, created_at, actor:profiles!actor_id(full_name)')
       .eq('ticket_id', id)
-      .eq('event_type', 'status_change')
       .order('created_at', { ascending: false })
-      .limit(20),
+      .limit(30),
     supabase
       .from('remote_sessions')
       .select('*, proposer:profiles!proposed_by(full_name)')
@@ -268,8 +267,10 @@ export default async function TicketDetailPage({
           <TicketStatusTimeline
             events={(statusEvents ?? []).map((event) => ({
               id: event.id,
+              event_type: event.event_type,
               from_status: event.from_status,
               to_status: event.to_status,
+              metadata: event.metadata as Record<string, string | null> | null,
               created_at: event.created_at,
               actor: event.actor as unknown as { full_name: string } | null,
             })) as StatusEvent[]}
