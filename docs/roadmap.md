@@ -2,7 +2,7 @@
 
 Documento vivo. Atualize ao final de cada sessão de trabalho.
 
-Última atualização: 2026-08-07
+Última atualização: 2026-08-08
 
 ## Princípios firmados
 
@@ -35,6 +35,10 @@ houver aprovação), **zero** para o analista.
 | Catálogo por ecossistema | Mínimo, Microsoft 365 ou Google Workspace na criação do cliente; itens viram dados em `catalog_templates` |
 | Anexo na abertura | Colaborador anexa print junto com o chamado, sem esperar a primeira resposta |
 | Auditoria completa | Prioridade, tipo, área, atendente, aprovador e decisão — antes só status. Nome resolvido no momento do evento |
+| Filas por equipe | Chamado passa a ter fila além de responsável. Três filas padrão por cliente, renomeáveis; filtro "minhas filas" na lista |
+| Motor de regras | Gatilho → condições → ações, guardado como dado e interpretado no banco. Roda em abertura, alteração e resposta. Toda execução vai para o histórico do chamado |
+| Automações por tempo | `pg_cron` a cada 15 min: fecha chamado parado e escalona antes de estourar o SLA. Tempo com padrão, destino em branco, ambas desligadas até o cliente ligar |
+| Migrations pareadas | Nome de arquivo passa a ser a versão que o banco registrou, e o que só existia no banco veio para o repositório. `supabase db push` num ambiente novo reproduz o que está rodando |
 
 ## Pendente
 
@@ -84,9 +88,12 @@ Formatação, respostas prontas, rascunho salvo, "enviar e mudar status", anexo 
 e-mail (hoje o anexo fica só no portal).
 
 ### Notificação de SLA
-SLA em risco ou vencido é baseado em tempo passando, não em alguém agir, então não
-sai de gatilho: precisa de agendamento. A coluna `notifications.email_sent_at` já
-existe como fila para quando houver agendador com chave de serviço.
+O escalonamento por tempo já existe (muda de fila, de responsável e sobe a
+prioridade), mas ele age *dentro* do sistema. Avisar por e-mail quem está fora
+continua pendente e continua dependendo de chave de serviço: a coluna
+`notifications.email_sent_at` está lá como fila. Vale lembrar o princípio: se o
+escalonamento já põe o chamado na frente de alguém que vive no sistema, o e-mail
+provavelmente é ruído.
 
 ### Proteção contra senha vazada
 Continua desligada. É configuração do painel de Auth do Supabase, fora do alcance

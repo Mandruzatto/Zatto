@@ -21,7 +21,21 @@ catálogo vazio** — o portal não oferece nada para abrir chamado. Não dá pa
 perceber olhando a tela de administração, só quando um colaborador tenta abrir
 chamado e não encontra nada.
 
-## 3. Variáveis de ambiente
+## 3. Agendador das automações por tempo
+
+A migration liga a extensão `pg_cron` e agenda a rotina. Confira que o agendamento
+existe:
+
+```sql
+select jobname, schedule, active from cron.job where jobname = 'zatto-time-automations';
+```
+
+Sem essa linha, fechamento automático e escalonamento de SLA simplesmente nunca
+rodam — e não há erro em lugar nenhum, porque ninguém está chamando. As duas
+automações nascem desligadas por cliente, então o silêncio é indistinguível do
+comportamento normal até alguém ligar e continuar sem ver efeito.
+
+## 4. Variáveis de ambiente
 
 | Variável | Para quê | Se faltar |
 |---|---|---|
@@ -33,7 +47,7 @@ chamado e não encontra nada.
 | `EMAIL_TEST_INBOX` | Desvia todo envio para um endereço só | Sem ela o envio vai para os destinatários reais — **remova apenas quando o domínio estiver verificado** |
 | `INBOUND_WEBHOOK_SECRET` | Assina o webhook de e-mail de entrada | A rota recusa tudo, por segurança |
 
-## 4. Configuração do Supabase Auth
+## 5. Configuração do Supabase Auth
 
 **Desligar "Confirm email"** em Authentication → Sign In / Providers → Email.
 
@@ -43,7 +57,7 @@ o cliente ativa o convite e mesmo assim não entra.
 
 Vale também ligar **Leaked password protection** na mesma tela.
 
-## 5. Primeiro administrador da plataforma
+## 6. Primeiro administrador da plataforma
 
 Depois que a sua conta existir:
 
@@ -60,5 +74,7 @@ Sem isso ninguém consegue criar cliente — a tela "Clientes" nem aparece.
 ```sql
 select
   (select count(*) from public.catalog_templates) as modelos,      -- espera 36
-  (select count(*) from public.profiles where is_platform_admin) as admins;  -- espera 1+
+  (select count(*) from public.profiles where is_platform_admin) as admins,  -- espera 1+
+  (select count(*) from cron.job where jobname = 'zatto-time-automations') as agendador,  -- espera 1
+  (select count(*) from public.teams) as filas;  -- espera 3 por cliente
 ```
