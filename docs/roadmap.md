@@ -34,6 +34,8 @@ houver aprovação), **zero** para o analista.
 ## Pendente
 
 ### Publicar a aplicação — hoje é o que mais bloqueia
+Passo a passo e armadilhas em `docs/deploy.md`.
+
 O zaTTo só roda em `localhost`. Nenhum cliente alcança, e o convite sai com link
 `http://localhost:3000/invite/...`, que só abre na máquina de quem gerou. O primeiro
 convite real foi ativado assim, pelo próprio fornecedor.

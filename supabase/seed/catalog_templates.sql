@@ -1,16 +1,130 @@
--- Conteúdo dos pacotes de catálogo (core, base, microsoft, google).
+-- Conteúdo dos pacotes de catálogo usados ao criar um cliente novo.
 --
--- ATENÇÃO — LACUNA CONHECIDA: as 36 linhas de modelo foram inseridas direto no
--- banco atual e ainda NÃO estão versionadas aqui. Num ambiente novo, a tabela
--- catalog_templates nasce vazia e todo cliente criado receberia catálogo vazio.
+-- Separado das migrations porque é dado revisável, não estrutura: ajustar um
+-- item aqui não deveria exigir migration. Mas precisa ser aplicado em todo
+-- ambiente — sem estas linhas a tabela nasce vazia e todo cliente criado
+-- receberia catálogo vazio.
 --
--- Antes do primeiro deploy, exportar do banco com:
+--   core       vai sempre, inclusive no perfil mínimo
+--   base       genérico, entra quando o cliente escolhe Microsoft ou Google
+--   microsoft  específico do Microsoft 365
+--   google     específico do Google Workspace
 --
---   select format(
---     '(%L,%L,%L,%L,%L,%L,%L,%s,%L,%L,%L)',
---     pack, slug, title, description, category, default_priority, default_type,
---     requires_approval, keywords, form_schema, area
---   )
---   from public.catalog_templates order by pack, slug;
---
--- e colar o resultado num INSERT nesta tabela.
+-- Reaplicável: o conflito por (pack, slug) é ignorado.
+
+insert into public.catalog_templates
+  (pack, slug, title, description, category, default_priority, default_type, requires_approval, keywords, form_schema, area)
+values
+('core','incidente-padrao','Incidente padrão','Reporte um problema ou falha que está atrapalhando o seu trabalho.','Outros','high','incident',false,
+ array['incidente','problema','erro','falha','padrão'],
+ '[{"key":"subject","type":"text","label":"O que está acontecendo?","required":true,"placeholder":"Ex: não consigo acessar o e-mail"},{"key":"impact","type":"select","label":"Impacto","options":["Baixo","Médio","Alto","Crítico"],"required":true},{"key":"details","type":"textarea","label":"Detalhes","required":true,"placeholder":"Quando começou, mensagem de erro, o que já tentou"}]'::jsonb,'infrastructure'),
+('core','solicitacao-padrao','Solicitação padrão','Abra uma solicitação de serviço para a equipe de TI.','Outros','medium','request',false,
+ array['solicitação','pedido','serviço','ajuda','padrão'],
+ '[{"key":"subject","type":"text","label":"Assunto","required":true,"placeholder":"Resumo da solicitação"},{"key":"details","type":"textarea","label":"Detalhes","required":true,"placeholder":"Explique o que precisa e o contexto"}]'::jsonb,'systems'),
+
+('base','reset-de-senha','Reset de senha','Esqueceu a senha ou precisa trocar? A equipe redefine para você.','Acessos e contas','high','request',false,
+ array['senha','password','esqueci','bloqueado','reset'],
+ '[{"key":"sistema","type":"text","label":"Qual sistema?","required":true,"placeholder":"Ex: e-mail, ERP, rede"}]'::jsonb,'systems'),
+('base','conta-bloqueada','Conta bloqueada ou desbloqueio de usuário','Conta travada após tentativas de acesso ou por inatividade.','Acessos e contas','high','request',false,
+ array['bloqueio','bloqueada','desbloquear','travada','conta'],
+ '[{"key":"sistema","type":"text","label":"Qual sistema?","required":true,"placeholder":"Ex: rede, e-mail, ERP"}]'::jsonb,'systems'),
+('base','acesso-sistema-pasta','Acesso a sistema ou pasta de rede','Peça permissão para um sistema, pasta ou compartilhamento.','Acessos e contas','medium','request',true,
+ array['acesso','permissão','pasta','sistema','rede'],
+ '[{"key":"recurso","type":"text","label":"Sistema ou pasta","required":true},{"key":"nivel","type":"select","label":"Nível","options":["Leitura","Leitura e escrita","Administrador"],"required":true},{"key":"motivo","type":"textarea","label":"Motivo","required":true}]'::jsonb,'systems'),
+('base','acesso-remoto-vpn','Acesso remoto ou VPN','Trabalhe fora do escritório com acesso à rede da empresa.','Acessos e contas','medium','request',true,
+ array['vpn','remoto','home office','externo'],
+ '[{"key":"motivo","type":"textarea","label":"Motivo","required":true},{"key":"periodo","type":"text","label":"Período","required":false,"placeholder":"Ex: definitivo, ou de 10/03 a 20/03"}]'::jsonb,'infrastructure'),
+('base','desligamento-colaborador','Desligamento de colaborador','Encerramento de acessos e devolução de equipamentos.','Acessos e contas','high','request',true,
+ array['desligamento','demissão','saída','offboarding'],
+ '[{"key":"colaborador","type":"text","label":"Quem está saindo","required":true},{"key":"ultimo_dia","type":"text","label":"Último dia","required":true,"placeholder":"dd/mm/aaaa"},{"key":"destino_dados","type":"textarea","label":"O que fazer com os dados","required":false}]'::jsonb,'systems'),
+('base','onboarding-novo-colaborador','Novo colaborador: kit de TI','Equipamento, acessos e contas para quem está chegando.','Outros','high','request',true,
+ array['onboarding','novo','admissão','kit','chegando'],
+ '[{"key":"colaborador","type":"text","label":"Nome do novo colaborador","required":true},{"key":"cargo","type":"text","label":"Cargo","required":true},{"key":"inicio","type":"text","label":"Data de início","required":true,"placeholder":"dd/mm/aaaa"},{"key":"necessidades","type":"textarea","label":"O que vai precisar","required":false}]'::jsonb,'systems'),
+('base','notebook-com-defeito','Notebook ou desktop com defeito','Máquina lenta, travando, não liga ou com defeito físico.','Equipamentos','high','incident',false,
+ array['notebook','desktop','computador','defeito','lento','travando'],
+ '[{"key":"sintoma","type":"textarea","label":"O que está acontecendo","required":true},{"key":"patrimonio","type":"text","label":"Patrimônio","required":false}]'::jsonb,'infrastructure'),
+('base','equipamento-novo','Notebook ou desktop novo','Solicitação de equipamento para novo uso ou substituição.','Equipamentos','medium','request',true,
+ array['notebook','desktop','novo','equipamento','máquina'],
+ '[{"key":"motivo","type":"textarea","label":"Motivo","required":true},{"key":"perfil","type":"select","label":"Perfil de uso","options":["Escritório","Técnico","Design ou engenharia"],"required":true}]'::jsonb,'infrastructure'),
+('base','periferico-mouse-teclado-headset','Mouse, teclado ou headset','Periférico com defeito ou solicitação de novo.','Equipamentos','low','request',false,
+ array['mouse','teclado','headset','fone','periférico'],
+ '[{"key":"item","type":"select","label":"Item","options":["Mouse","Teclado","Headset","Outro"],"required":true},{"key":"motivo","type":"select","label":"Motivo","options":["Defeito","Não tenho","Substituição"],"required":true}]'::jsonb,'infrastructure'),
+('base','monitor-adicional','Monitor adicional','Solicite uma segunda tela para a sua estação de trabalho.','Equipamentos','low','request',true,
+ array['monitor','tela','segunda tela','display'],
+ '[{"key":"justificativa","type":"textarea","label":"Justificativa","required":true}]'::jsonb,'infrastructure'),
+('base','impressora-problema','Impressora com problema','Não imprime, atola papel, sem toner ou fora da rede.','Equipamentos','medium','incident',false,
+ array['impressora','imprimir','toner','papel','scanner'],
+ '[{"key":"impressora","type":"text","label":"Qual impressora","required":true},{"key":"sintoma","type":"textarea","label":"O que acontece","required":true}]'::jsonb,'infrastructure'),
+('base','incidente-sem-internet','Sem internet ou rede lenta','Conexão caiu ou está lenta demais para trabalhar.','Rede e infraestrutura','high','incident',false,
+ array['internet','rede','lento','conexão','offline'],
+ '[{"key":"escopo","type":"select","label":"Afeta quem?","options":["Só eu","Minha equipe","O escritório todo"],"required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":false}]'::jsonb,'infrastructure'),
+('base','incidente-wifi','Problema com Wi-Fi','Wi-Fi não conecta, cai sozinho ou não aparece.','Rede e infraestrutura','medium','incident',false,
+ array['wifi','wi-fi','sem fio','rede'],
+ '[{"key":"local","type":"text","label":"Onde você está","required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":false}]'::jsonb,'infrastructure'),
+('base','instalacao-software','Instalação de software','Peça a instalação de um programa no seu equipamento.','Software','medium','request',true,
+ array['software','programa','instalar','aplicativo'],
+ '[{"key":"programa","type":"text","label":"Qual programa","required":true},{"key":"motivo","type":"textarea","label":"Para que precisa","required":true}]'::jsonb,'systems'),
+('base','licenca-software','Licença de software','Nova licença ou renovação de programa pago.','Software','medium','request',true,
+ array['licença','licenca','assinatura','renovação'],
+ '[{"key":"programa","type":"text","label":"Qual programa","required":true},{"key":"motivo","type":"textarea","label":"Justificativa","required":true}]'::jsonb,'systems'),
+('base','incidente-erro-sistema','Erro em sistema ou aplicação','Mensagem de erro, função que parou ou comportamento estranho.','Software','high','incident',false,
+ array['erro','bug','sistema','aplicação','falha'],
+ '[{"key":"sistema","type":"text","label":"Qual sistema","required":true},{"key":"erro","type":"textarea","label":"Mensagem de erro e o que você fazia","required":true}]'::jsonb,'systems'),
+('base','incidente-sistema-fora-do-ar','Sistema fora do ar','Sistema inteiro indisponível para os usuários.','Software','critical','incident',false,
+ array['fora do ar','indisponível','caiu','parado'],
+ '[{"key":"sistema","type":"text","label":"Qual sistema","required":true},{"key":"escopo","type":"select","label":"Afeta quem?","options":["Só eu","Minha equipe","A empresa toda"],"required":true}]'::jsonb,'systems'),
+('base','restauracao-backup','Restauração de arquivo ou backup','Recuperar arquivo apagado, sobrescrito ou versão anterior.','Outros','high','request',false,
+ array['backup','restaurar','recuperar','apagado','versão'],
+ '[{"key":"arquivo","type":"text","label":"Arquivo ou pasta","required":true},{"key":"quando","type":"text","label":"De quando é a versão que precisa","required":true}]'::jsonb,'infrastructure'),
+('base','duvida-sistema','Dúvida sobre uso de sistema','Não é problema: é dúvida de como fazer alguma coisa.','Outros','low','request',false,
+ array['dúvida','como faz','ajuda','treinamento'],
+ '[{"key":"sistema","type":"text","label":"Qual sistema","required":true},{"key":"duvida","type":"textarea","label":"Sua dúvida","required":true}]'::jsonb,'systems'),
+
+('microsoft','acesso-sharepoint','Acesso a pasta do SharePoint','Solicite acesso de leitura ou edição a um site ou pasta do SharePoint.','Acessos e contas','medium','request',true,
+ array['sharepoint','pasta','site','acesso','documento'],
+ '[{"key":"local","type":"text","label":"Site ou pasta","required":true},{"key":"nivel","type":"select","label":"Nível","options":["Leitura","Leitura e escrita"],"required":true},{"key":"motivo","type":"textarea","label":"Motivo","required":true}]'::jsonb,'systems'),
+('microsoft','acesso-onedrive','Compartilhamento no OneDrive','Compartilhar arquivos ou recuperar acesso a uma pasta do OneDrive.','Acessos e contas','low','request',false,
+ array['onedrive','compartilhar','arquivo','nuvem'],
+ '[{"key":"arquivo","type":"text","label":"Arquivo ou pasta","required":true},{"key":"com_quem","type":"text","label":"Compartilhar com quem","required":true}]'::jsonb,'systems'),
+('microsoft','email-corporativo','Criação ou alteração de e-mail (Exchange)','Nova caixa, alteração de nome, alias ou redirecionamento no Microsoft 365.','Acessos e contas','medium','request',true,
+ array['email','e-mail','exchange','outlook','caixa','alias'],
+ '[{"key":"tipo","type":"select","label":"O que precisa","options":["Nova caixa","Alterar nome","Criar alias","Redirecionamento","Lista de distribuição"],"required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":true}]'::jsonb,'systems'),
+('microsoft','problema-outlook','Problema no Outlook','Outlook não sincroniza, não envia ou pede senha o tempo todo.','Software','high','incident',false,
+ array['outlook','email','sincronizar','senha','enviar'],
+ '[{"key":"sintoma","type":"textarea","label":"O que acontece","required":true},{"key":"onde","type":"select","label":"Onde","options":["Computador","Celular","Navegador"],"required":true}]'::jsonb,'systems'),
+('microsoft','acesso-teams','Acesso ou problema no Teams','Entrar em uma equipe, criar canal ou resolver falha de reunião.','Software','medium','request',false,
+ array['teams','reunião','equipe','canal','chamada'],
+ '[{"key":"tipo","type":"select","label":"O que precisa","options":["Entrar em uma equipe","Criar equipe ou canal","Problema em reunião","Outro"],"required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":true}]'::jsonb,'systems'),
+('microsoft','licenca-microsoft-365','Licença Microsoft 365','Atribuição ou troca de licença do Microsoft 365.','Software','medium','request',true,
+ array['licença','microsoft','365','office','m365'],
+ '[{"key":"plano","type":"select","label":"Plano","options":["Business Basic","Business Standard","Business Premium","E3","E5","Não sei"],"required":true},{"key":"motivo","type":"textarea","label":"Justificativa","required":true}]'::jsonb,'systems'),
+('microsoft','mfa-microsoft','Problema com autenticação em dois fatores','Trocou de celular, perdeu o acesso ao autenticador ou não recebe o código.','Acessos e contas','high','request',false,
+ array['mfa','2fa','autenticador','authenticator','código','dois fatores'],
+ '[{"key":"situacao","type":"select","label":"Situação","options":["Troquei de celular","Perdi o acesso","Não recebo o código","Quero reconfigurar"],"required":true}]'::jsonb,'systems'),
+
+('google','acesso-drive','Acesso a pasta do Google Drive','Solicite acesso de leitura ou edição a uma pasta ou drive compartilhado.','Acessos e contas','medium','request',true,
+ array['drive','google drive','pasta','acesso','documento'],
+ '[{"key":"local","type":"text","label":"Pasta ou drive","required":true},{"key":"nivel","type":"select","label":"Nível","options":["Leitura","Comentar","Edição"],"required":true},{"key":"motivo","type":"textarea","label":"Motivo","required":true}]'::jsonb,'systems'),
+('google','drive-compartilhado','Criar drive compartilhado','Novo drive compartilhado para uma equipe ou projeto.','Acessos e contas','low','request',true,
+ array['drive compartilhado','shared drive','equipe','projeto'],
+ '[{"key":"nome","type":"text","label":"Nome do drive","required":true},{"key":"membros","type":"textarea","label":"Quem deve ter acesso","required":true}]'::jsonb,'systems'),
+('google','email-corporativo','Criação ou alteração de e-mail (Gmail)','Nova conta, alteração de nome, apelido ou encaminhamento no Workspace.','Acessos e contas','medium','request',true,
+ array['email','e-mail','gmail','workspace','conta','apelido'],
+ '[{"key":"tipo","type":"select","label":"O que precisa","options":["Nova conta","Alterar nome","Criar apelido","Encaminhamento","Grupo de e-mail"],"required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":true}]'::jsonb,'systems'),
+('google','problema-gmail','Problema no Gmail','Gmail não sincroniza, não envia ou pede senha o tempo todo.','Software','high','incident',false,
+ array['gmail','email','sincronizar','senha','enviar'],
+ '[{"key":"sintoma","type":"textarea","label":"O que acontece","required":true},{"key":"onde","type":"select","label":"Onde","options":["Computador","Celular","Navegador"],"required":true}]'::jsonb,'systems'),
+('google','acesso-meet','Problema no Google Meet','Falha em reunião: áudio, vídeo, gravação ou acesso à sala.','Software','medium','incident',false,
+ array['meet','reunião','chamada','vídeo','áudio'],
+ '[{"key":"sintoma","type":"textarea","label":"O que acontece","required":true}]'::jsonb,'systems'),
+('google','grupo-google','Grupo do Google Workspace','Criar grupo ou incluir e remover pessoas de um grupo existente.','Acessos e contas','low','request',true,
+ array['grupo','lista','distribuição','workspace'],
+ '[{"key":"tipo","type":"select","label":"O que precisa","options":["Criar grupo","Incluir pessoa","Remover pessoa"],"required":true},{"key":"grupo","type":"text","label":"Nome do grupo","required":true},{"key":"detalhes","type":"textarea","label":"Detalhes","required":false}]'::jsonb,'systems'),
+('google','licenca-workspace','Licença Google Workspace','Atribuição ou troca de licença do Workspace.','Software','medium','request',true,
+ array['licença','google','workspace','plano'],
+ '[{"key":"plano","type":"select","label":"Plano","options":["Business Starter","Business Standard","Business Plus","Enterprise","Não sei"],"required":true},{"key":"motivo","type":"textarea","label":"Justificativa","required":true}]'::jsonb,'systems'),
+('google','mfa-google','Problema com verificação em duas etapas','Trocou de celular, perdeu o acesso ao autenticador ou não recebe o código.','Acessos e contas','high','request',false,
+ array['2fa','duas etapas','autenticador','código','verificação'],
+ '[{"key":"situacao","type":"select","label":"Situação","options":["Troquei de celular","Perdi o acesso","Não recebo o código","Quero reconfigurar"],"required":true}]'::jsonb,'systems')
+
+on conflict (pack, slug) do nothing;
