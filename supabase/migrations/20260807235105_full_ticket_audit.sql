@@ -10,7 +10,7 @@
 -- metadata guarda o "de/para" já com nome de pessoa resolvido, para a linha do
 -- tempo não precisar de junção nem lidar com quem foi excluído depois.
 
-alter table public.ticket_events add column if not exists metadata jsonb;
+alter table public.ticket_events add column metadata jsonb;
 
 create or replace function public.log_ticket_field_changes()
 returns trigger
