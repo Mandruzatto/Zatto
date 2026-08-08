@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
+import { AutomationsSettings } from '@/components/analyst/automations-settings'
 import { TICKET_PRIORITY_LABELS, TICKET_AREA_LABELS, TICKET_TYPE_LABELS, cn } from '@/lib/utils'
 import type { TicketArea, TicketPriority, TicketType } from '@/lib/types'
 
@@ -48,11 +49,18 @@ const CATALOG_CATEGORIES = [
 ]
 
 export function ItsmSettings({
-  policies, calendars, catalog, articles, categories,
-}: { policies: Row[]; calendars: Row[]; catalog: Row[]; articles: Row[]; categories: Row[] }) {
+  policies, calendars, catalog, articles, categories, automations,
+}: {
+  policies: Row[]
+  calendars: Row[]
+  catalog: Row[]
+  articles: Row[]
+  categories: Row[]
+  automations: React.ComponentProps<typeof AutomationsSettings>
+}) {
   const router = useRouter()
   const supabase = createClient()
-  const [tab, setTab] = useState<'catalog' | 'sla' | 'knowledge'>('catalog')
+  const [tab, setTab] = useState<'catalog' | 'sla' | 'automations' | 'knowledge'>('catalog')
   const [saving, setSaving] = useState(false)
   const [policy, setPolicy] = useState({
     ...emptyPolicy,
@@ -219,12 +227,14 @@ export function ItsmSettings({
 
   return (
     <div className="p-6 space-y-5 max-w-6xl">
-      <div><h1 className="text-lg font-semibold text-zinc-100">Configurações</h1><p className="text-[13px] text-zinc-500">Catálogo, SLA e base de conhecimento.</p></div>
+      <div><h1 className="text-lg font-semibold text-zinc-100">Configurações</h1><p className="text-[13px] text-zinc-500">Catálogo, SLA, automações e base de conhecimento.</p></div>
       <div className="flex gap-1 border-b border-zinc-800">
-        {([['catalog','Catálogo'],['sla','SLAs'],['knowledge','Conhecimento']] as const).map(([id,label]) => (
+        {([['catalog','Catálogo'],['sla','SLAs'],['automations','Automações'],['knowledge','Conhecimento']] as const).map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)} className={cn('px-3 py-2 text-[13px] border-b-2 -mb-px', tab===id?'border-zinc-100 text-zinc-100':'border-transparent text-zinc-500')}>{label}</button>
         ))}
       </div>
+
+      {tab === 'automations' && <AutomationsSettings {...automations} />}
 
       {tab === 'catalog' && <div className="grid gap-5 xl:grid-cols-2">
         <Card>

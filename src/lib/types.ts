@@ -89,6 +89,86 @@ export interface Profile {
   updated_at: string
 }
 
+export interface Team {
+  id: string
+  name: string
+  description?: string | null
+  is_active: boolean
+  position: number
+  member_count?: number
+}
+
+export type AutomationTrigger = 'ticket_created' | 'ticket_updated' | 'comment_added'
+
+export type AutomationField =
+  | 'text'
+  | 'title'
+  | 'description'
+  | 'type'
+  | 'priority'
+  | 'status'
+  | 'area'
+  | 'team_id'
+  | 'assignee_id'
+  | 'requester_id'
+  | 'catalog_item_id'
+  | 'comment_author_role'
+
+export type AutomationOperator =
+  | 'eq'
+  | 'neq'
+  | 'in'
+  | 'contains'
+  | 'not_contains'
+  | 'is_empty'
+  | 'is_not_empty'
+
+export type AutomationActionType =
+  | 'set_team'
+  | 'set_assignee'
+  | 'set_priority'
+  | 'set_status'
+  | 'set_type'
+  | 'set_area'
+
+export interface AutomationCondition {
+  field: AutomationField
+  op: AutomationOperator
+  value?: string | string[] | null
+}
+
+export interface AutomationAction {
+  type: AutomationActionType
+  value: string | null
+}
+
+export interface AutomationRule {
+  id: string
+  name: string
+  description?: string | null
+  trigger_on: AutomationTrigger
+  match_mode: 'all' | 'any'
+  conditions: AutomationCondition[]
+  actions: AutomationAction[]
+  is_active: boolean
+  position: number
+  run_count: number
+  last_run_at?: string | null
+}
+
+export interface AutomationSettings {
+  tenant_id: string
+  auto_close_enabled: boolean
+  auto_close_days: number
+  auto_close_statuses: TicketStatus[]
+  auto_close_message: string
+  sla_escalation_enabled: boolean
+  sla_escalation_at_percent: number
+  sla_escalation_team_id?: string | null
+  sla_escalation_assignee_id?: string | null
+  sla_escalation_bump_priority: boolean
+}
+
 export interface Ticket {
   id: string
   ticket_number: string
@@ -110,11 +190,14 @@ export interface Ticket {
   first_responded_at?: string | null
   requester_id: string
   assignee_id?: string
+  team_id?: string | null
+  sla_escalated_at?: string | null
   created_at: string
   updated_at: string
   resolved_at?: string
   requester?: Profile
   assignee?: Profile
+  team?: Team | null
   assets?: Asset[]
 }
 

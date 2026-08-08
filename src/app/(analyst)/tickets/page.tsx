@@ -40,9 +40,13 @@ const TYPE_WEIGHT: Record<TicketType, number> = {
   request: 1,
 }
 
+/** UUID que nunca existe: usado para forçar resultado vazio sem quebrar o tipo. */
+const NO_TEAM = '00000000-0000-0000-0000-000000000000'
+
 type TicketRow = Ticket & {
   requester: { id: string; full_name: string; department?: string } | null
   assignee: { id: string; full_name: string } | null
+  team: { id: string; name: string } | null
 }
 
 function compareTickets(a: TicketRow, b: TicketRow, sort: TicketSortKey, ascending: boolean) {
@@ -73,7 +77,11 @@ function compareTickets(a: TicketRow, b: TicketRow, sort: TicketSortKey, ascendi
       break
     }
     case 'assignee':
-      result = (a.assignee?.full_name ?? '').localeCompare(b.assignee?.full_name ?? '', 'pt-BR')
+      // Sem responsável, a fila é o melhor critério: agrupa quem ainda vai ser pego.
+      result = (a.assignee?.full_name ?? a.team?.name ?? '').localeCompare(
+        b.assignee?.full_name ?? b.team?.name ?? '',
+        'pt-BR'
+      )
       break
     case 'updated_at':
       result = (a.updated_at ?? a.created_at).localeCompare(b.updated_at ?? b.created_at)
@@ -94,6 +102,7 @@ function emptyMessage(params: {
   sla?: string
   q?: string
   assignee?: string
+  team?: string
   awaiting?: string
   remote?: string
 }) {
@@ -145,7 +154,19 @@ function emptyMessage(params: {
       hint: 'Todos os chamados filtrados já têm um agente.',
     }
   }
-  if (params.status || params.priority || params.type || params.area || params.q || params.assignee) {
+  if (params.team === 'mine') {
+    return {
+      title: 'Nada nas suas filas',
+      hint: 'Se você não está em nenhuma fila, peça para te incluírem em Configurações › Automações.',
+    }
+  }
+  if (params.team === 'none') {
+    return {
+      title: 'Nenhum chamado fora de fila',
+      hint: 'Todos os chamados já foram encaminhados para algum time.',
+    }
+  }
+  if (params.status || params.priority || params.type || params.area || params.q || params.assignee || params.team) {
     return {
       title: 'Nenhum chamado com esses filtros',
       hint: 'Ajuste ou limpe os filtros para ver mais resultados.',
@@ -168,6 +189,7 @@ export default async function TicketsPage({
     sla?: string
     q?: string
     assignee?: string
+    team?: string
     awaiting?: string
     remote?: string
     sort?: string
@@ -178,19 +200,32 @@ export default async function TicketsPage({
   const params = await searchParams
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: analysts }] = await Promise.all([
+  const [{ data: analysts }, { data: teams }, { data: myTeams }] = await Promise.all([
     supabase.from('profiles').select('id, full_name').eq('role', 'analyst').order('full_name'),
+    supabase.from('teams').select('id, name').eq('is_active', true).order('position'),
+    user
+      ? supabase.from('team_members').select('team_id').eq('profile_id', user.id)
+      : Promise.resolve({ data: [] as { team_id: string }[] }),
   ])
+
+  const myTeamIds = (myTeams ?? []).map((m) => m.team_id)
 
   let query = supabase
     .from('tickets')
-    .select('*, requester:profiles!requester_id(id, full_name, department), assignee:profiles!assignee_id(id, full_name)')
+    .select('*, requester:profiles!requester_id(id, full_name, department), assignee:profiles!assignee_id(id, full_name), team:teams(id, name)')
     .order('created_at', { ascending: false })
 
   if (params.status) query = query.eq('status', params.status)
   if (params.assignee === 'me' && user) query = query.eq('assignee_id', user.id)
   else if (params.assignee === 'unassigned') query = query.is('assignee_id', null)
   else if (params.assignee) query = query.eq('assignee_id', params.assignee)
+  // "Minhas filas" com zero filas devolveria tudo; melhor devolver nada e o
+  // vazio explicar que a pessoa não está em nenhuma.
+  if (params.team === 'mine') {
+    query = query.in('team_id', myTeamIds.length ? myTeamIds : [NO_TEAM])
+  }
+  else if (params.team === 'none') query = query.is('team_id', null)
+  else if (params.team) query = query.eq('team_id', params.team)
   if (params.priority) query = query.eq('priority', params.priority)
   if (params.type) query = query.eq('type', params.type)
   if (params.area) query = query.eq('area', params.area)
@@ -298,6 +333,8 @@ export default async function TicketsPage({
       <Suspense fallback={null}>
         <TicketsFilters
           analysts={analysts ?? []}
+          teams={teams ?? []}
+          hasTeams={myTeamIds.length > 0}
           currentUserId={user?.id}
         />
       </Suspense>
@@ -407,7 +444,12 @@ export default async function TicketsPage({
                       )}
                     </td>
                     <td className="px-4 py-3 text-zinc-400">
-                      {ticket.assignee?.full_name ?? <span className="text-zinc-600 text-xs">Não atribuído</span>}
+                      {ticket.assignee?.full_name ?? (
+                        <span className="text-xs text-zinc-600">Não atribuído</span>
+                      )}
+                      {ticket.team && (
+                        <p className="mt-0.5 text-[11px] text-zinc-600">{ticket.team.name}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-500">
                       {formatRelativeTime(ticket.updated_at ?? ticket.created_at)}

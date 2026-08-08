@@ -37,10 +37,15 @@ const FILTERS: { key: string; placeholder: string; labels: Record<string, string
 export function TicketsFilters({
   exclude = [],
   analysts = [],
+  teams = [],
+  hasTeams = false,
   currentUserId,
 }: {
   exclude?: string[]
   analysts?: { id: string; full_name: string }[]
+  teams?: { id: string; name: string }[]
+  /** A pessoa está em alguma fila — só aí "Minhas filas" faz sentido. */
+  hasTeams?: boolean
   currentUserId?: string
 }) {
   const router = useRouter()
@@ -59,10 +64,12 @@ export function TicketsFilters({
   }
 
   const assignee = searchParams.get('assignee') ?? ''
+  const team = searchParams.get('team') ?? ''
   const hasFilters =
     filters.some((f) => searchParams.get(f.key)) ||
     searchParams.get('q') ||
-    Boolean(assignee)
+    Boolean(assignee) ||
+    Boolean(team)
 
   return (
     <div className="space-y-2.5">
@@ -86,6 +93,30 @@ export function TicketsFilters({
               {analysts.map((analyst) => (
                 <option key={analyst.id} value={analyst.id}>
                   {analyst.full_name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-600" />
+          </div>
+        )}
+
+        {!exclude.includes('team') && teams.length > 0 && (
+          <div className="relative">
+            <select
+              value={team}
+              onChange={(e) => setParam('team', e.target.value)}
+              className={cn(
+                'appearance-none rounded-lg border bg-zinc-900 pl-3 pr-8 py-2 text-[13px] transition-colors cursor-pointer',
+                'focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600',
+                team ? 'border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-500'
+              )}
+            >
+              <option value="">Fila</option>
+              {hasTeams && <option value="mine">Minhas filas</option>}
+              <option value="none">Sem fila</option>
+              {teams.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
                 </option>
               ))}
             </select>

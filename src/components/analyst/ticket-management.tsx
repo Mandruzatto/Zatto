@@ -24,6 +24,7 @@ import type { TicketApproval } from '@/lib/types'
 interface TicketManagementProps {
   ticket: Ticket
   analysts: { id: string; full_name: string }[]
+  teams: { id: string; name: string }[]
   currentApproval?: TicketApproval | null
   currentUserId: string
 }
@@ -31,6 +32,7 @@ interface TicketManagementProps {
 export function TicketManagement({
   ticket,
   analysts,
+  teams,
   currentApproval,
   currentUserId,
 }: TicketManagementProps) {
@@ -45,6 +47,7 @@ export function TicketManagement({
     type: ticket.type,
     area: ticket.area ?? '',
     assignee_id: ticket.assignee_id ?? '',
+    team_id: ticket.team_id ?? '',
     resolution: ticket.resolution ?? '',
     pending_reason: ticket.pending_reason ?? '',
     scheduled_for: toDateTimeLocalValue(ticket.scheduled_for),
@@ -61,6 +64,7 @@ export function TicketManagement({
     form.type !== ticket.type ||
     form.area !== (ticket.area ?? '') ||
     form.assignee_id !== (ticket.assignee_id ?? '') ||
+    form.team_id !== (ticket.team_id ?? '') ||
     form.resolution !== (ticket.resolution ?? '') ||
     form.pending_reason !== (ticket.pending_reason ?? '') ||
     (isScheduled && form.scheduled_for !== toDateTimeLocalValue(ticket.scheduled_for))
@@ -83,6 +87,7 @@ export function TicketManagement({
       type: form.type,
       area: form.area || null,
       assignee_id: form.assignee_id || null,
+      team_id: form.team_id || null,
       resolution: needsResolution ? form.resolution.trim() || null : null,
       pending_reason: isPending ? form.pending_reason.trim() || null : null,
       scheduled_for: isScheduled ? new Date(form.scheduled_for).toISOString() : null,
@@ -155,6 +160,15 @@ export function TicketManagement({
     <Card>
       <CardHeader><CardTitle>Triagem</CardTitle></CardHeader>
       <CardContent className="space-y-3.5">
+        {teams.length > 0 && (
+          <Select
+            label="Fila"
+            options={teams.map((team) => ({ value: team.id, label: team.name }))}
+            placeholder="Sem fila"
+            value={form.team_id}
+            onChange={(e) => setForm({ ...form, team_id: e.target.value })}
+          />
+        )}
         <Select
           label="Agente"
           options={agentOptions}

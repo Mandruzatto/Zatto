@@ -36,7 +36,8 @@ export default async function TicketDetailPage({
     .select(`
       *,
       requester:profiles!requester_id(*),
-      assignee:profiles!assignee_id(*)
+      assignee:profiles!assignee_id(*),
+      team:teams(id, name)
     `)
     .eq('id', id)
     .single()
@@ -53,6 +54,7 @@ export default async function TicketDetailPage({
     { data: statusEvents },
     { data: remoteSessions },
     { data: satisfaction },
+    { data: teams },
   ] = await Promise.all([
     supabase.from('ticket_assets').select('asset:assets(*)').eq('ticket_id', id),
     supabase
@@ -76,6 +78,7 @@ export default async function TicketDetailPage({
       .eq('ticket_id', id)
       .order('scheduled_for', { ascending: false }),
     supabase.from('ticket_satisfaction').select('*').eq('ticket_id', id).maybeSingle(),
+    supabase.from('teams').select('id, name').eq('is_active', true).order('position'),
   ])
 
   const requester = ticket.requester as unknown as Profile | null
@@ -281,6 +284,7 @@ export default async function TicketDetailPage({
           <TicketManagement
             ticket={ticket as unknown as Ticket}
             analysts={analysts ?? []}
+            teams={teams ?? []}
             currentApproval={(approval as unknown as TicketApproval | null) ?? null}
             currentUserId={user!.id}
           />

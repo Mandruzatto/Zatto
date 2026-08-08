@@ -26,6 +26,9 @@ const DOT_COLOR: Record<string, string> = {
   area_change: 'bg-zinc-600',
   approver_change: 'bg-cyan-500/70',
   approval_decision: 'bg-emerald-500/70',
+  team_change: 'bg-sky-500/70',
+  automation: 'bg-violet-500/70',
+  sla_escalation: 'bg-orange-500/70',
 }
 
 /** Sem valor (campo que estava vazio) fica explícito, em vez de virar espaço em branco. */
@@ -62,6 +65,15 @@ function describe(event: StatusEvent): string {
 
     case 'approver_change':
       return `Aprovador: ${ou(meta.de)} → ${ou(meta.para)}`
+
+    case 'team_change':
+      return `Fila: ${ou(meta.de, 'sem fila')} → ${ou(meta.para, 'sem fila')}`
+
+    case 'automation':
+      return `Automação: ${ou(meta.regra, 'regra removida')}`
+
+    case 'sla_escalation':
+      return `Escalonado: prazo passou de ${meta.percentual ?? '—'}%`
 
     case 'approval_decision':
       return `${meta.decisao === 'approved' ? 'Aprovado' : 'Rejeitado'} por ${ou(meta.por, 'aprovador')}`
