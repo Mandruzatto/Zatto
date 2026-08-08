@@ -30,6 +30,11 @@ houver aprovação), **zero** para o analista.
 | Relatórios | `/reports` com SLA cumprido, tempo médio, satisfação e distribuições |
 | Sugestão de artigo | Casa palavra-chave do catálogo com a base antes de abrir chamado |
 | Endurecimento | Funções privilegiadas fechadas para visitante, gatilho tirado do alcance de RPC, `search_path` esvaziado |
+| Gestão de clientes | Renomear, suspender (barra o acesso de verdade), excluir só vazio; convites com cancelar e reenviar |
+| Cliente novo funcional | Gatilho semeia SLA, calendário e catálogo. Corrigidas 6 restrições de unicidade que eram globais e vazariam entre clientes |
+| Catálogo por ecossistema | Mínimo, Microsoft 365 ou Google Workspace na criação do cliente; itens viram dados em `catalog_templates` |
+| Anexo na abertura | Colaborador anexa print junto com o chamado, sem esperar a primeira resposta |
+| Auditoria completa | Prioridade, tipo, área, atendente, aprovador e decisão — antes só status. Nome resolvido no momento do evento |
 
 ## Pendente
 
